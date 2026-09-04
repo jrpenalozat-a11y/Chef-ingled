@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens del prototipo. Todo el color de la app sale de aquí.
+ * Cada estado tiene par texto/fondo para que se distinga sin leer.
+ */
+@theme {
+  --color-bg: #eef1f5;
+  --color-paper: #ffffff;
+  --color-ink: #16202e;
+  --color-muted: #63748a;
+  --color-line: #d6dde6;
+
+  --color-amber: #9a5b00;
+  --color-amber-bg: #fdf3e2;
+
+  --color-done: #2c6a4f;
+  --color-done-bg: #eaf3ee;
+
+  --color-late: #8e2f2f;
+  --color-late-bg: #fbeded;
+
+  /* Serif solo para las horas: son las anclas visuales de la pantalla. */
+  --font-hora: Georgia, 'Times New Roman', 'Nimbus Roman', serif;
+}
+
+html {
+  /* Nada de rebote elástico: se lee con una mano y con sueño. */
+  -webkit-text-size-adjust: 100%;
+  background: var(--color-bg);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  /* Zona segura del notch y del gesto inferior en iPhone. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+/* Sin animaciones llamativas: hay alguien durmiendo en la casa. */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    transition-duration: 120ms;
+    transition-timing-function: ease-out;
+  }
+}
+
+/* Al tocar una dosis no queremos el destello azul de selección del navegador. */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Foco visible pero sobrio, para quien navegue con teclado. */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+  .no-imprimir {
+    display: none !important;
+  }
+}
