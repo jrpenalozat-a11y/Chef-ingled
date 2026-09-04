@@ -9,12 +9,14 @@ export function generateStaticParams() {
 }
 
 export const dynamicParams = false
+export const dynamic = 'force-static'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ codigo: string }> }) {
   const { codigo } = await params
   if (!esCodigoValido(codigo)) return new Response('No encontrado', { status: 404 })
 
-  const raiz = `/f/${normalizar(codigo)}`
+  const base = process.env.BASE_PATH ?? ''
+  const raiz = `${base}/f/${normalizar(codigo)}/`
   const manifest = {
     name: 'Control de medicación',
     short_name: 'Medicación',
@@ -28,9 +30,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ codigo:
     lang: 'es-CL',
     dir: 'ltr',
     icons: [
-      { src: '/icono-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/icono-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/icono-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: `${base}/icono-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: `${base}/icono-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      {
+        src: `${base}/icono-maskable-512.png`,
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
     ],
   }
 

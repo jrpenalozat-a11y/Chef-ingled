@@ -15,10 +15,12 @@ export async function generateMetadata({
   params: Promise<{ codigo: string }>
 }): Promise<Metadata> {
   const { codigo } = await params
+  // Next no le añade el basePath a una ruta absoluta de manifest, así que va aquí.
+  const base = process.env.BASE_PATH ?? ''
   return {
     title: 'Medicación',
     robots: { index: false, follow: false, nocache: true },
-    manifest: `/f/${normalizar(codigo)}/manifest.webmanifest`,
+    manifest: `${base}/f/${normalizar(codigo)}/manifest.webmanifest`,
   }
 }
 

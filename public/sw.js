@@ -10,11 +10,13 @@
 const VERSION = 'v1'
 const CACHE = `medicacion-${VERSION}`
 
-// La app se registra como /sw.js?raiz=/f/<codigo>, así el worker sabe qué páginas
-// guardar de entrada y la app abre sin señal ya desde la primera visita, sin
-// esperar a una segunda carga.
-const RAIZ = new URL(self.location.href).searchParams.get('raiz')
-const PRECARGA = RAIZ ? [RAIZ, `${RAIZ}/historial`] : []
+// La app se registra como /sw.js?rutas=<las suyas>, así el worker sabe qué
+// páginas guardar de entrada y la app abre sin señal ya desde la primera
+// visita, sin esperar a una segunda carga. Las rutas vienen tal como las
+// resuelve el navegador, con barra final o sin ella según el despliegue.
+const PRECARGA = (new URL(self.location.href).searchParams.get('rutas') || '')
+  .split(',')
+  .filter(Boolean)
 
 self.addEventListener('install', (evento) => {
   // La app nueva entra en cuanto está lista: no queremos dos versiones conviviendo.
@@ -52,8 +54,9 @@ self.addEventListener('fetch', (evento) => {
     return
   }
 
-  // Los archivos de /_next/static llevan hash en el nombre: no cambian nunca.
-  if (url.pathname.startsWith('/_next/static/')) {
+  // Los archivos de _next/static llevan hash en el nombre: no cambian nunca.
+  // Con `includes` funciona igual si la app cuelga de /<repo>/ en GitHub Pages.
+  if (url.pathname.includes('/_next/static/')) {
     evento.respondWith(cachePrimero(peticion))
     return
   }
@@ -68,7 +71,10 @@ async function redPrimero(peticion) {
     if (respuesta && respuesta.ok) cache.put(peticion, respuesta.clone())
     return respuesta
   } catch {
-    const guardada = (await cache.match(peticion)) || (await cache.match(peticion, { ignoreSearch: true }))
+    const guardada =
+      (await cache.match(peticion)) ||
+      (await cache.match(peticion, { ignoreSearch: true })) ||
+      (await cache.match(otraFormaDeLaRuta(peticion.url), { ignoreSearch: true }))
     if (guardada) return guardada
     return new Response(
       '<!doctype html><meta charset="utf-8"><title>Sin conexión</title>' +
@@ -99,4 +105,11 @@ async function cacheYActualiza(peticion) {
     })
     .catch(() => null)
   return guardada || (await enRed) || Response.error()
+}
+
+/** La misma dirección con la barra final al revés, por si se guardó de la otra forma. */
+function otraFormaDeLaRuta(href) {
+  const url = new URL(href)
+  url.pathname = url.pathname.endsWith('/') ? url.pathname.slice(0, -1) : `${url.pathname}/`
+  return url.toString()
 }

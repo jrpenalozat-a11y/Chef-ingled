@@ -24,17 +24,34 @@ que conviene tener claras:
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000/f/casa
+npm run dev          # http://localhost:3000/f/anis-quince-salvia-8114
 ```
 
-En desarrollo el código de acceso por defecto es `casa`, así que la app está en
-`/f/casa`.
+El código de acceso está en `config/app.ts`.
 
-### Desplegar en Vercel
+### Publicada en GitHub Pages
+
+La rama se publica sola en GitHub Pages cada vez que se le hace push, con el workflow
+`.github/workflows/publicar-medicacion.yml`. La app queda en:
+
+**https://jrpenalozat-a11y.github.io/Chef-ingled/f/anis-quince-salvia-8114/**
+
+Para cambiar el código de acceso, edita `CODIGO_POR_DEFECTO` en `config/app.ts` y haz
+push: la app pasa a la dirección nueva y la anterior deja de existir. Ten en cuenta que
+el repositorio es público, así que ese código se puede leer en el código fuente; lo que
+protege de verdad es que **los datos nunca salen del teléfono**, así que quien abra la
+dirección solo ve la app vacía.
+
+Un detalle de GitHub Pages: `robots.txt` acaba en `/Chef-ingled/robots.txt`, que no es
+donde lo buscan los buscadores. Lo que mantiene la app fuera de los índices es la
+etiqueta `noindex` que lleva cada página en su `<head>`.
+
+### Desplegar en Vercel (alternativa)
 
 1. Importa el repositorio en Vercel y elige la rama `claude/medication-control-app-4ukhtj`.
 2. En **Settings → Environment Variables**, añade `CODIGO_FAMILIA` con un código largo y
-   difícil de adivinar (por ejemplo `manzana-verde-4417`). Acepta varios separados por coma.
+   difícil de adivinar. Acepta varios separados por coma. Ahí el código queda fuera del
+   repositorio, que es la ventaja sobre GitHub Pages.
 3. Despliega. La app queda en `https://<tu-proyecto>.vercel.app/f/<tu-codigo>`.
 
 No hace falta configurar nada más: ni base de datos, ni servicios externos.
@@ -113,7 +130,11 @@ src/lib/cliente/         almacenamiento en el teléfono y hooks de React
 src/components/          interfaz
 public/sw.js             modo offline
 scripts/gen-icons.mjs    genera los íconos (npm run iconos)
+.github/workflows/       publicación automática en GitHub Pages
 ```
+
+`npm run build` construye para un servidor normal; `npm run build:pages` genera el sitio
+estático que se sube a Pages.
 
 ## Qué no está hecho
 

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "iconos": "node scripts/gen-icons.mjs"
+    "iconos": "node scripts/gen-icons.mjs",
+    "build:pages": "EXPORTAR_ESTATICO=1 next build"
   },
   "dependencies": {
     "next": "^16.3.4",

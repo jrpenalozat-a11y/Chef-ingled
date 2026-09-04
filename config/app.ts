@@ -9,10 +9,13 @@
  * de datos: sirve para que el enlace no sea adivinable y para que las páginas
  * queden fuera de buscadores (van marcadas noindex y robots.txt bloquea todo).
  *
- * Cámbialo por el tuyo. También se puede fijar con la variable de entorno
- * CODIGO_FAMILIA (acepta varios separados por coma), que tiene prioridad.
+ * Cámbialo cuando quieras: al desplegar, la app pasa a la dirección nueva y la
+ * anterior deja de existir. También se puede fijar con la variable de entorno
+ * CODIGO_FAMILIA (acepta varios separados por coma), que tiene prioridad; en
+ * GitHub Pages no hay variables de entorno secretas, así que este archivo es el
+ * lugar donde se cambia.
  */
-export const CODIGO_POR_DEFECTO = 'casa'
+export const CODIGO_POR_DEFECTO = 'anis-quince-salvia-8114'
 
 /** Cuidadores que aparecen en el selector. Nombres libres, sin cuentas ni contraseñas. */
 export const CUIDADORES: string[] = ['Ricardo', 'Hermana', 'Apoyo']

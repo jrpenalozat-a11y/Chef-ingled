@@ -1,0 +1,60 @@
+# Publica la app de control de medicación en GitHub Pages.
+#
+# Se construye como sitio estático (no hay servidor ni base de datos: el registro
+# vive en el teléfono), así que basta con subir la carpeta `out`.
+name: Publicar app de medicación
+
+on:
+  push:
+    branches: [claude/medication-control-app-4ukhtj]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue a la vez; no se cancelan los que ya están en curso.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `enablement` activa Pages la primera vez, sin tener que tocar Settings.
+      - name: Preparar Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - run: npm ci
+
+      - name: Construir el sitio estático
+        run: npm run build:pages
+        env:
+          # En un repositorio de proyecto el sitio cuelga de /<repo>/.
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  desplegar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - id: despliegue
+        uses: actions/deploy-pages@v4
