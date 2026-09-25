@@ -257,7 +257,18 @@
   }
   .calib input:focus { outline: none; border-color: var(--phos); box-shadow: 0 0 12px rgba(127,194,140,.3); }
   .calib button { background: transparent; color: var(--phos); border: 1px solid var(--phos); padding: 8px 14px; flex: 1; }
-  .calib button:hover { background: rgba(127,194,140,.12); }
+  .calib button:hover, .scanbtn:hover, .place button:hover { background: rgba(127,194,140,.12); }
+  .scanbtn {
+    background: transparent; color: var(--phos); border: 1px solid var(--phos);
+    font-weight: 700; padding: 12px 16px;
+    box-shadow: 0 0 14px rgba(127,194,140,.15);
+  }
+  .place { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--phos); background: rgba(6,13,8,.8); }
+  .place[hidden] { display: none; }
+  .place p { margin: 0; color: var(--phos); font-family: var(--type); font-size: .95rem; }
+  .place .calib-row button { background: transparent; color: var(--phos); border: 1px solid var(--phos-dim); padding: 8px 12px; flex: 1; font-size: .8rem; }
+  .scope.placing canvas { cursor: crosshair; }
+  .scope.placing { box-shadow: inset 0 0 0 3px var(--phos), inset 0 0 40px rgba(0,0,0,.9), 0 0 0 6px #120d0f, 0 0 30px rgba(127,194,140,.35); }
   @media (max-width: 600px) {
     .radar { grid-template-columns: minmax(0, 1fr); }
     .scope { max-width: 360px; margin-inline: auto; }
@@ -372,7 +383,7 @@
   <div class="answer idle" id="answer" aria-live="polite">La tabla espera tu pregunta.</div>
 
   <section class="radar" aria-label="Radar de presencias">
-    <div class="scope"><canvas id="scope" aria-hidden="true"></canvas></div>
+    <div class="scope" id="scopebox"><canvas id="scope" aria-label="Pantalla del radar"></canvas></div>
     <div class="readout">
       <h2>Radar de presencias</h2>
       <p class="status" id="rstatus" aria-live="polite">Escaneando… sin lecturas. Alcance 6 m.</p>
@@ -383,13 +394,21 @@
         <dt>Distancia</dt><dd id="rdist">—</dd>
         <dt>Rumbo</dt><dd id="rbear">—</dd>
       </dl>
+      <button type="button" class="scanbtn" id="scanbtn">Escanear el sector</button>
       <form class="calib" id="calib" hidden>
-        <label for="people">Calibrar: personas en la habitación</label>
+        <label for="people">Personas vivas en la habitación</label>
         <div class="calib-row">
           <input type="number" id="people" min="1" max="12" inputmode="numeric" value="3">
-          <button type="submit">Iniciar escaneo</button>
+          <button type="submit">Ubicar en el radar</button>
         </div>
       </form>
+      <div class="place" id="place" hidden>
+        <p id="placemsg">Toca el radar donde está la persona 1 de 3.</p>
+        <div class="calib-row">
+          <button type="button" id="undo">Deshacer</button>
+          <button type="button" id="autoplace">Resto al azar</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -422,7 +441,7 @@
       <li>Escribe otro punto <code>.</code> para cerrar el secreto y sigue tecleando hasta completar la petición.</li>
       <li>Deja que tu víctima escriba la pregunta. El espíritu deletreará tu respuesta en la tabla.</li>
       <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
-      <li>Radar: escribe <code>..</code> en el campo de pregunta (o en cualquier parte de la página con el teclado). Aparece la calibración: anota cuántas personas hay en la habitación y pulsa «Iniciar escaneo». Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
+      <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Anota cuántas personas hay en la habitación, pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada una. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
   </details>
 </main>
@@ -877,28 +896,83 @@
     o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + .55);
   }
 
+  const scopebox = document.getElementById("scopebox");
+  const placeBox = document.getElementById("place");
+  const placeMsg = document.getElementById("placemsg");
+  let placing = null;
+
   function openCalibration() {
+    stopRadar();
     calib.hidden = false;
     peopleIn.focus();
     peopleIn.select();
+    setStatus("¿Cuántas personas vivas hay en la habitación?");
   }
+
+  function beginPlacing(n) {
+    calib.hidden = true;
+    placing = { n, list: [] };
+    placeBox.hidden = false;
+    scopebox.classList.add("placing");
+    updatePlacing();
+    scopebox.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  function updatePlacing() {
+    const k = placing.list.length + 1;
+    placeMsg.textContent = "Toca el radar donde está la persona " + k + " de " + placing.n + ".";
+    setStatus("Ubicando personas vivas… " + placing.list.length + "/" + placing.n);
+    rlive.textContent = placing.list.length + "/" + placing.n;
+  }
+  function finishPlacing() {
+    const list = placing.list;
+    placing = null;
+    placeBox.hidden = true;
+    scopebox.classList.remove("placing");
+    startRadar(list);
+  }
+  scope.addEventListener("pointerdown", e => {
+    if (!placing) return;
+    const rect = scope.getBoundingClientRect();
+    const c = rect.width / 2, R = c - 4;
+    const dx = e.clientX - rect.left - c, dy = e.clientY - rect.top - c;
+    const r = Math.hypot(dx, dy) / R;
+    if (r > 1) return;
+    const a = ((Math.atan2(dy, dx) + Math.PI / 2) % TAU + TAU) % TAU;
+    placing.list.push({ a, r });
+    ping(660);
+    if (placing.list.length >= placing.n) finishPlacing(); else updatePlacing();
+  });
+  document.getElementById("undo").addEventListener("click", () => {
+    if (placing && placing.list.length) { placing.list.pop(); updatePlacing(); }
+  });
+  document.getElementById("autoplace").addEventListener("click", () => {
+    if (!placing) return;
+    while (placing.list.length < placing.n) placing.list.push({ a: rand(0, TAU), r: rand(.15, .6) });
+    finishPlacing();
+  });
+  document.getElementById("scanbtn").addEventListener("click", () => {
+    if (soundOn) ensureAudio();
+    openCalibration();
+  });
 
   function stopRadar() {
     timers.forEach(clearTimeout); timers = [];
-    scanning = false; living = []; spirit = null;
-    calib.hidden = true;
+    scanning = false; living = []; spirit = null; placing = null;
+    calib.hidden = true; placeBox.hidden = true;
+    scopebox.classList.remove("placing");
     [rlive, rghosts, rname, rdist, rbear].forEach(el => el.textContent = "—");
     setStatus("Escaneando… sin lecturas. Alcance 6 m.");
   }
 
-  function startRadar(n) {
+  function startRadar(list) {
     stopRadar();
     scanning = true;
-    living = Array.from({ length: n }, () => ({ a: rand(0, TAU), r: rand(.12, .55), alpha: 0 }));
+    const n = list.length;
+    living = list.map(p => ({ a: p.a, r: p.r, a0: p.a, r0: p.r, alpha: 0 }));
     rlive.textContent = String(n);
     rghosts.textContent = "0";
-    setStatus("Calibrando… " + n + (n === 1 ? " persona viva." : " personas vivas."));
-    later(() => setStatus("Lectura estable. Esperando anomalías…"), 2500);
+    setStatus("Escaneando el sector… " + n + (n === 1 ? " persona viva." : " personas vivas."));
+    later(() => setStatus("Sector calibrado. Esperando anomalías…"), 2500);
     later(summonSpirit, rand(6000, 9000));
   }
 
@@ -981,13 +1055,30 @@
     const fade = dt / PERIOD;
 
     living.forEach(b => {
-      if (hit(b.a)) { b.alpha = 1; b.a += rand(-.05, .05); b.r = Math.min(.6, Math.max(.1, b.r + rand(-.02, .02))); }
+      if (hit(b.a0)) { b.alpha = 1; b.a = b.a0 + rand(-.035, .035); b.r = Math.min(1, Math.max(.02, b.r0 + rand(-.015, .015))); }
       b.alpha = Math.max(0, b.alpha - fade);
       const [x, y] = xy(b);
       g2.fillStyle = `rgba(170,240,180,${b.alpha})`;
       g2.shadowColor = "rgba(127,194,140,.9)"; g2.shadowBlur = 10 * b.alpha;
       g2.beginPath(); g2.arc(x, y, Math.max(3, w / 90), 0, TAU); g2.fill();
     });
+
+    // el que sostiene el teléfono está en el centro
+    g2.fillStyle = "rgba(170,240,180,.9)";
+    g2.beginPath(); g2.moveTo(c, c - 7); g2.lineTo(c - 5, c + 5); g2.lineTo(c + 5, c + 5); g2.closePath(); g2.fill();
+    g2.font = "700 " + Math.max(9, w / 34) + "px 'Courier Prime', monospace";
+    g2.fillText("TÚ", c + 8, c + 16);
+
+    if (placing) {
+      placing.list.forEach((b, i) => {
+        const [x, y] = xy(b);
+        g2.strokeStyle = "rgba(170,240,180,.9)"; g2.lineWidth = 1.5;
+        g2.beginPath(); g2.arc(x, y, Math.max(7, w / 40), 0, TAU); g2.stroke();
+        g2.fillStyle = "rgba(170,240,180,1)";
+        g2.beginPath(); g2.arc(x, y, Math.max(3, w / 90), 0, TAU); g2.fill();
+        g2.fillText(String(i + 1), x + Math.max(9, w / 34), y - 6);
+      });
+    }
 
     if (spirit) {
       if (spirit.visible && hit(spirit.a)) {
@@ -1012,8 +1103,11 @@
         const label = spirit.name.toUpperCase();
         g2.font = Math.max(11, w / 24) + "px 'Courier Prime', monospace";
         const tw = g2.measureText(label).width, fh = Math.max(11, w / 24);
-        const lx = Math.min(Math.max(x - tw / 2, 8), w - tw - 8);
         const ly = y - Math.max(12, w / 28) < fh + 6 ? y + fh + Math.max(10, w / 30) : y - Math.max(12, w / 28);
+        // mantener el rótulo dentro del círculo del radar
+        const dy = Math.min(R, Math.max(Math.abs(ly - fh / 2 - c), 0));
+        const hc = Math.sqrt(Math.max(0, R * R - dy * dy)) * .9;
+        const lx = tw + 12 > 2 * hc ? c - tw / 2 : Math.min(Math.max(x - tw / 2, c - hc + 6), c + hc - tw - 6);
         g2.fillStyle = `rgba(10,4,5,${la * .75})`;
         g2.fillRect(lx - 5, ly - fh, tw + 10, fh + 6);
         g2.strokeStyle = `rgba(200,57,45,${la * .8})`; g2.lineWidth = 1;
@@ -1042,7 +1136,7 @@
     e.preventDefault();
     const n = Math.max(1, Math.min(12, parseInt(peopleIn.value, 10) || 1));
     if (soundOn) ensureAudio();
-    startRadar(n);
+    beginPlacing(n);
   });
 
   // disparador secreto: ".." en la pregunta o en cualquier parte de la página
