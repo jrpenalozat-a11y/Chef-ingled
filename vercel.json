@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd espiritu-responde && sh build.sh",
+  "outputDirectory": "espiritu-responde/dist",
+  "installCommand": "",
+  "framework": null
+}
