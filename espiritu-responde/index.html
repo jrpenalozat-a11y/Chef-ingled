@@ -378,7 +378,7 @@
       <li>Sin detenerte, escribe la respuesta secreta. Por ejemplo <code>.Tu abuela.</code> Cada letra que tecleas se transforma en la siguiente letra de la petición.</li>
       <li>Escribe otro punto <code>.</code> para cerrar el secreto y sigue tecleando hasta completar la petición.</li>
       <li>Deja que tu víctima escriba la pregunta. El espíritu deletreará tu respuesta en la tabla.</li>
-      <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 30 frases e insiste en hablar con Ricardo.</li>
+      <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
       <li>Radar: escribe <code>..</code> en el campo de pregunta (o en cualquier parte de la página con el teclado). Aparece la calibración: anota cuántas personas hay en la habitación y pulsa «Iniciar escaneo». Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
   </details>
@@ -477,7 +477,7 @@
   });
 
   /* ---------- respuestas del más allá ---------- */
-  // Sin respuesta secreta, el espíritu esquiva la pregunta y exige a Ricardo
+  // Sin respuesta secreta, el espíritu esquiva la pregunta (55 frases al azar)
   const EVASIVE = [
     "Solo hablo con Ricardo",
     "Dónde está Ricardo",
@@ -509,9 +509,35 @@
     "Busco a Ricardo desde 1987",
     "Ricardo sueña conmigo",
     "Esta noche visito a Ricardo",
+    // evasivas sin Ricardo
+    "No me preguntes eso",
+    "Eso no se pregunta aquí",
+    "Alguien más está escuchando",
+    "No estoy solo en esta sala",
+    "Las velas saben la respuesta",
+    "Pregunta cuando apagues la luz",
+    "La respuesta está bajo tu cama",
+    "No quieres saberlo",
+    "Mañana lo sabrás a las tres",
+    "Cierra los ojos y pregunta otra vez",
+    "Hay alguien detrás de ti",
+    "Esa pregunta me despierta",
+    "No es tu turno",
+    "Pregúntale al que está en la puerta",
+    "Ya te lo dije en sueños",
+    "Mira tus manos",
+    "Cuenta cuántos son ahora",
+    "El espejo te lo dirá",
+    "No digas mi nombre en voz alta",
+    "Esa respuesta cuesta caro",
+    "Te lo diré cuando estés solo",
+    "Alguien más contestará por mí",
+    "No salgas de la sala todavía",
+    "Pregunta de nuevo y me quedo",
+    "Escucha los golpes en la pared",
   ];
   const pick = a => a[Math.floor(Math.random() * a.length)];
-  // bolsa barajada: no repite frase hasta agotar las 30
+  // bolsa barajada: no repite frase hasta agotarlas todas
   let bag = [];
   function nextEvasive() {
     if (!bag.length) {
