@@ -11,3 +11,5 @@ mkdir -p dist
   cat index.html
   printf '\n</body>\n</html>\n'
 } > dist/index.html
+# la voz del espíritu se carga aparte
+cp -r voz dist/

@@ -1,0 +1,4 @@
+La voz del espíritu usa meSpeak (https://www.masswerk.at/mespeak/), una versión
+de eSpeak para el navegador, de Norbert Landsteiner, basada en speak.js de
+Alon Zakai. eSpeak y meSpeak se distribuyen bajo la licencia GNU GPL v3.
+Paquete original: https://www.npmjs.com/package/mespeak (v2.0.2).

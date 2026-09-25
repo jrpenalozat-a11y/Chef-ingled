@@ -1127,7 +1127,89 @@
     };
   }
 
+  /* ---------- voz demoníaca ----------
+     El texto se sintetiza dentro de la app (meSpeak, en voz/mespeak.js) para poder
+     procesar el audio: se baja el tono, se distorsiona, se dobla con una segunda voz
+     más grave, se modula con un gruñido y se le suma un susurro con eco.
+     Si la voz no carga, se usa la voz del teléfono. */
+  let meSpeakP = null;
+  function loadMeSpeak() {
+    if (window.meSpeak) return Promise.resolve(window.meSpeak);
+    if (!meSpeakP) meSpeakP = new Promise(res => {
+      const sc = document.createElement("script");
+      sc.src = "voz/mespeak.js"; sc.async = true;
+      sc.onload = () => res(window.meSpeak || null);
+      sc.onerror = () => { meSpeakP = null; res(null); };
+      document.head.appendChild(sc);
+    });
+    return meSpeakP;
+  }
+  function distortion(k) {
+    const n = 2048, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i * 2 / n - 1; curve[i] = (1 + k) * x / (1 + k * Math.abs(x)); }
+    const ws = ctx.createWaveShaper(); ws.curve = curve; ws.oversample = "4x";
+    return ws;
+  }
+  async function synth(M, text, opts) {
+    const ab = M.speak(text, Object.assign({ rawdata: "arraybuffer" }, opts));
+    if (!ab) return null;
+    return await new Promise((res, rej) => ctx.decodeAudioData(ab.slice ? ab.slice(0) : ab, res, rej)).catch(() => null);
+  }
+  async function demonSpeak(text) {
+    const M = await loadMeSpeak();
+    const c = live();
+    if (!M || !c) return false;
+    const t = text.toLowerCase();
+    const [voiceBuf, whisperBuf] = await Promise.all([
+      synth(M, t, { variant: "croak", pitch: 0, speed: 120, wordgap: 4, amplitude: 120 }),
+      synth(M, t, { variant: "whisperf", pitch: 0, speed: 128, wordgap: 4, amplitude: 110 }),
+    ]);
+    if (!voiceBuf) return false;
+    const t0 = c.currentTime + .05;
+    const out = voice(0, .55);
+    const bus = c.createGain(); bus.gain.value = 1.2;
+    // cuerpo grave y ronco
+    const low = c.createBiquadFilter(); low.type = "lowshelf"; low.frequency.value = 180; low.gain.value = 10;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400;
+    bus.connect(low); low.connect(lp); lp.connect(out);
+    // gruñido: modulación en anillo con una onda lenta, mezclada con la voz limpia
+    const ring = c.createGain(); ring.gain.value = 0;
+    const rOsc = c.createOscillator(); rOsc.frequency.value = 38; rOsc.connect(ring.gain);
+    const ringMix = c.createGain(); ringMix.gain.value = .55; ring.connect(ringMix); ringMix.connect(bus);
+    rOsc.start(t0);
+    const layer = (buf, rate, gain, drive) => {
+      const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
+      const d = distortion(drive), g = c.createGain(); g.gain.value = gain;
+      src.connect(d); d.connect(g); g.connect(bus); g.connect(ring);
+      src.start(t0);
+      return buf.duration / rate;
+    };
+    const d1 = layer(voiceBuf, .66, .9, 6);    // voz principal, mucho más grave
+    const d2 = layer(voiceBuf, .56, .55, 14);  // segunda voz aún más grave y desfasada
+    let dur = Math.max(d1, d2);
+    if (whisperBuf) {
+      // susurro que acompaña, abierto hacia los lados y con mucho eco
+      [-.8, .8].forEach((pan, i) => {
+        const w = c.createBufferSource(); w.buffer = whisperBuf; w.playbackRate.value = .8 + i * .04;
+        const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 900;
+        const g = c.createGain(); g.gain.value = .5;
+        w.connect(hp); hp.connect(g); g.connect(voice(pan, .9));
+        w.start(t0 + .12 + i * .09);
+        dur = Math.max(dur, whisperBuf.duration / w.playbackRate.value + .2);
+      });
+    }
+    rOsc.stop(t0 + dur + .5);
+    // un retumbo debajo de todo
+    SFX.retumbo();
+    return true;
+  }
+
   function speak(text) {
+    if (!soundOn || !text) return;
+    demonSpeak(text).then(ok => { if (!ok) speakBrowser(text); }).catch(() => speakBrowser(text));
+  }
+
+  function speakBrowser(text) {
     if (!soundOn || !window.speechSynthesis || !text) return;
     try {
       const v = voiceCache || (voiceCache = darkVoice());
@@ -1181,6 +1263,7 @@
     ensureAudio(); unlockSpeech(); startDrone();
     clearTimeout(ambientTimer);
     ambientTimer = setTimeout(ambientLoop, 6000);
+    setTimeout(loadMeSpeak, 1200); // la voz pesa unos MB: se carga en segundo plano
   }
   ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, armAudio, { capture: true }));
   // botonera secreta del médium
