@@ -297,6 +297,31 @@
   .soundboard button:hover { border-color: var(--ember); color: #fff; box-shadow: 0 0 12px rgba(200,57,45,.35); }
   .soundboard button:active { background: var(--blood); }
 
+  /* ----- cámara espectral ----- */
+  .specter {
+    --phos: #7fc28c; --phos-dim: rgba(127,194,140,.35);
+    display: flex; flex-direction: column; gap: 14px;
+    border-top: 1px solid #2a1e22; padding-top: 24px;
+  }
+  .specter h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.1; color: var(--bone); }
+  .specter .status { color: var(--bone-dim); font-family: var(--type); }
+  .specter .status.alert { color: var(--ember); }
+  .spec-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .spec-actions label, .spec-tools button {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-family: var(--type); font-weight: 700; font-size: .95rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--phos); border: 1px solid var(--phos); padding: 12px 16px; border-radius: 2px; cursor: pointer;
+    background: transparent; box-shadow: 0 0 14px rgba(127,194,140,.15);
+  }
+  .spec-actions label:hover, .spec-tools button:hover { background: rgba(127,194,140,.12); }
+  .spec-actions label:focus-within { outline: 2px solid var(--candle); outline-offset: 3px; }
+  .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+  .spec-frame { position: relative; border: 1px solid #1b2a1f; background: #020403; box-shadow: 0 0 0 4px #0b0709, 0 20px 50px rgba(0,0,0,.7); }
+  .spec-frame[hidden], .spec-tools[hidden] { display: none; }
+  .spec-frame canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+  .spec-tools { display: flex; flex-wrap: wrap; gap: 10px; }
+  .spec-tools button { flex: 1 1 140px; font-size: .8rem; padding: 10px 12px; border-color: var(--phos-dim); }
+
   /* ----- sombras y ritual ----- */
   .closing {
     position: fixed; inset: 0; z-index: 2; pointer-events: none;
@@ -428,6 +453,21 @@
     </div>
   </section>
 
+  <section class="specter" aria-label="Cámara espectral">
+    <h2>Cámara espectral</h2>
+    <p class="status" id="sstatus">Toma una foto o graba unos segundos de la habitación. La cámara revela lo que el ojo no ve.</p>
+    <div class="spec-actions">
+      <label for="photoIn">Foto espectral<input type="file" id="photoIn" class="vh" accept="image/*" capture="environment"></label>
+      <label for="videoIn">Video espectral<input type="file" id="videoIn" class="vh" accept="video/*" capture="environment"></label>
+    </div>
+    <div class="spec-frame" id="specframe" hidden><canvas id="speccanvas"></canvas></div>
+    <div class="spec-tools" id="spectools" hidden>
+      <button type="button" id="specagain">Ver de nuevo</button>
+      <button type="button" id="specclose">Cerrar cámara</button>
+    </div>
+    <video id="specvideo" class="vh" playsinline muted></video>
+  </section>
+
   <form class="ritual" id="ritual" autocomplete="off">
     <div class="field">
       <label for="petition">Petición <b>·</b> escríbela entera</label>
@@ -460,6 +500,7 @@
       <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
       <li>Respuesta de sí o no: toca una vez la palabra «Sí» o «No» del tablero. Parpadea un instante y la próxima respuesta será esa. Toca de nuevo la misma palabra para cancelar. Esto tiene prioridad sobre todo lo demás.</li>
       <li>Con el sonido encendido, el espíritu dice la respuesta en voz alta con voz de ultratumba.</li>
+      <li>Cámara espectral: toma una foto o graba 5 a 10 segundos de un rincón oscuro. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
       <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Escribe los nombres de los presentes separados por coma (o solo cuántos son), pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada uno. Con nombres, el espíritu los menciona en sus respuestas y dice junto a quién está. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
     <p class="sb-title">Sonidos a mano (tócalos sin que te vean)</p>
@@ -1525,6 +1566,319 @@
     else lastDot = now;
   });
 
+  /* ---------- cámara espectral ---------- */
+  const sstatus = document.getElementById("sstatus");
+  const specframe = document.getElementById("specframe");
+  const spectools = document.getElementById("spectools");
+  const sc = document.getElementById("speccanvas");
+  const sx = sc.getContext("2d");
+  const svid = document.getElementById("specvideo");
+  let spec = null; // estado de la toma actual
+  let specRAF = 0;
+
+  function sStatus(t, alert) { sstatus.textContent = t; sstatus.classList.toggle("alert", !!alert); }
+
+  // ruido de película reutilizable
+  const grain = document.createElement("canvas");
+  grain.width = grain.height = 192;
+  (() => {
+    const g = grain.getContext("2d"), d = g.createImageData(192, 192);
+    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+    g.putImageData(d, 0, 0);
+  })();
+
+  // figura fantasmal: mujer pálida de pelo largo que se disuelve en niebla
+  function makeGhost(h) {
+    const w = Math.round(h * .5);
+    const a = document.createElement("canvas"); a.width = w; a.height = h;
+    const g = a.getContext("2d"), cx = w / 2;
+    const body = g.createLinearGradient(0, h * .1, 0, h);
+    body.addColorStop(0, "rgba(236,242,255,.95)"); body.addColorStop(.55, "rgba(220,230,250,.55)"); body.addColorStop(1, "rgba(220,230,250,0)");
+    g.fillStyle = body;
+    g.beginPath();
+    g.moveTo(cx - w * .05, h * .19);
+    g.bezierCurveTo(cx - w * .2, h * .22, cx - w * .24, h * .3, cx - w * .22, h * .42);
+    g.bezierCurveTo(cx - w * .3, h * .65, cx - w * .44, h * .85, cx - w * .47, h);
+    g.lineTo(cx + w * .47, h);
+    g.bezierCurveTo(cx + w * .44, h * .85, cx + w * .3, h * .65, cx + w * .22, h * .42);
+    g.bezierCurveTo(cx + w * .24, h * .3, cx + w * .2, h * .22, cx + w * .05, h * .19);
+    g.closePath(); g.fill();
+    // cabeza
+    g.fillStyle = "rgba(240,245,255,.95)";
+    g.beginPath(); g.ellipse(cx, h * .12, w * .1, h * .072, 0, 0, TAU); g.fill();
+    // pelo negro que cae sobre la cara
+    g.fillStyle = "rgba(5,5,8,.9)";
+    g.beginPath();
+    g.moveTo(cx - w * .12, h * .1);
+    g.bezierCurveTo(cx - w * .1, h * .02, cx + w * .1, h * .02, cx + w * .12, h * .1);
+    g.bezierCurveTo(cx + w * .15, h * .22, cx + w * .12, h * .33, cx + w * .07, h * .36);
+    g.lineTo(cx + w * .03, h * .16);
+    g.lineTo(cx - w * .03, h * .16);
+    g.lineTo(cx - w * .07, h * .36);
+    g.bezierCurveTo(cx - w * .12, h * .33, cx - w * .15, h * .22, cx - w * .12, h * .1);
+    g.fill();
+    // ojos hundidos
+    g.fillStyle = "rgba(0,0,0,.95)";
+    g.beginPath(); g.ellipse(cx - w * .035, h * .115, w * .018, h * .01, 0, 0, TAU); g.fill();
+    g.beginPath(); g.ellipse(cx + w * .035, h * .115, w * .018, h * .01, 0, 0, TAU); g.fill();
+    // brazos colgando
+    g.strokeStyle = "rgba(230,238,255,.6)"; g.lineWidth = w * .045; g.lineCap = "round";
+    g.beginPath(); g.moveTo(cx - w * .2, h * .25); g.quadraticCurveTo(cx - w * .27, h * .4, cx - w * .24, h * .56); g.stroke();
+    g.beginPath(); g.moveTo(cx + w * .2, h * .25); g.quadraticCurveTo(cx + w * .27, h * .4, cx + w * .24, h * .56); g.stroke();
+    // desenfoque barato que funciona en todos los navegadores: reducir y ampliar
+    const blur = k => {
+      const sm = document.createElement("canvas");
+      sm.width = Math.max(4, Math.round(w / k)); sm.height = Math.max(4, Math.round(h / k));
+      const sg = sm.getContext("2d"); sg.imageSmoothingEnabled = true; sg.imageSmoothingQuality = "high";
+      sg.drawImage(a, 0, 0, sm.width, sm.height);
+      return sm;
+    };
+    const out = document.createElement("canvas"); out.width = w; out.height = h;
+    const o = out.getContext("2d"); o.imageSmoothingEnabled = true; o.imageSmoothingQuality = "high";
+    o.drawImage(blur(16), 0, 0, w, h);          // halo
+    o.globalAlpha = .8; o.drawImage(blur(6), 0, 0, w, h);  // cuerpo
+    o.globalAlpha = .18; o.drawImage(a, 0, 0);  // apenas un rastro de nitidez en la cara
+    // la parte baja se deshace en niebla granulada
+    o.globalAlpha = 1; o.globalCompositeOperation = "destination-out";
+    const fade = o.createLinearGradient(0, h * .45, 0, h);
+    fade.addColorStop(0, "rgba(0,0,0,0)"); fade.addColorStop(1, "rgba(0,0,0,1)");
+    o.fillStyle = fade; o.fillRect(0, 0, w, h);
+    o.globalAlpha = .35; o.fillStyle = o.createPattern(grain, "repeat"); o.fillRect(0, 0, w, h);
+    return out;
+  }
+
+  // busca el rincón más oscuro para esconder a la figura
+  function darkestSpot() {
+    const W = sc.width, H = sc.height;
+    const img = sx.getImageData(0, 0, W, H).data;
+    let best = null;
+    const cols = 7, rows = 3;
+    for (let i = 1; i < cols - 1; i++) for (let j = 0; j < rows; j++) {
+      let sum = 0, n = 0;
+      const x0 = Math.floor(W * i / cols), y0 = Math.floor(H * (.25 + j * .18)), cw = Math.floor(W / cols), ch = Math.floor(H * .18);
+      for (let y = y0; y < y0 + ch; y += 6) for (let x = x0; x < x0 + cw; x += 6) {
+        const q = (y * W + x) * 4; sum += img[q] * .3 + img[q + 1] * .59 + img[q + 2] * .11; n++;
+      }
+      const lum = sum / Math.max(1, n) + Math.abs(i - cols / 2) * 4; // leve preferencia por el centro
+      if (!best || lum < best.lum) best = { lum, x: x0 + cw / 2 };
+    }
+    return best ? best.x : W / 2;
+  }
+
+  function spectralMessage() {
+    const { secret } = derive(keys);
+    if (secret) return secret;
+    const names = living.filter(b => b.name).map(b => b.name);
+    if (names.length && Math.random() < .6) return pick(PERSONAL).replace("{n}", pick(names));
+    return nextEvasive();
+  }
+
+  // visión nocturna: gris verdoso con grano y viñeta
+  function drawNight(source, t) {
+    const W = sc.width, H = sc.height;
+    sx.globalCompositeOperation = "source-over"; sx.globalAlpha = 1;
+    sx.drawImage(source, 0, 0, W, H);
+    sx.globalCompositeOperation = "saturation"; sx.fillStyle = "#000"; sx.fillRect(0, 0, W, H);
+    sx.globalCompositeOperation = "multiply"; sx.fillStyle = "#86d493"; sx.fillRect(0, 0, W, H);
+    sx.globalCompositeOperation = "screen"; sx.fillStyle = "rgba(20,40,24,.35)"; sx.fillRect(0, 0, W, H);
+    sx.globalCompositeOperation = "overlay"; sx.globalAlpha = .35;
+    sx.save(); sx.translate(-Math.random() * 192, -Math.random() * 192);
+    sx.fillStyle = sx.createPattern(grain, "repeat"); sx.fillRect(0, 0, W + 192, H + 192); sx.restore();
+    sx.globalAlpha = 1; sx.globalCompositeOperation = "source-over";
+    const v = sx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .75);
+    v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.75)");
+    sx.fillStyle = v; sx.fillRect(0, 0, W, H);
+    // líneas de barrido
+    sx.fillStyle = "rgba(0,0,0,.18)";
+    for (let y = (t * 40) % 4; y < H; y += 4) sx.fillRect(0, y, W, 1);
+  }
+
+  function drawGhost(alpha) {
+    if (!spec.ghost || alpha <= 0) return;
+    const gw = spec.ghost.width, gh = spec.ghost.height;
+    const x = spec.gx - gw / 2, y = sc.height * .92 - gh;
+    sx.save();
+    sx.globalCompositeOperation = "screen";
+    sx.globalAlpha = alpha;
+    sx.drawImage(spec.ghost, x, y);
+    // interferencia: de vez en cuando una franja se desplaza
+    if (Math.random() < .25) {
+      const sy = Math.random() * gh * .8, sh = gh * rnd(.03, .09), shift = (Math.random() - .5) * gw * .25;
+      sx.globalAlpha = alpha * .8;
+      sx.drawImage(spec.ghost, 0, sy, gw, sh, x + shift, y + sy, gw, sh);
+    }
+    sx.restore();
+  }
+
+  function hud(t, label, alert) {
+    const W = sc.width, H = sc.height, f = Math.max(12, W / 40);
+    sx.font = "700 " + f + "px 'Courier Prime', monospace";
+    sx.fillStyle = alert ? "rgba(255,90,74,.95)" : "rgba(190,255,200,.9)";
+    sx.fillText(label, f, f * 1.8);
+    if (Math.floor(t * 2) % 2 === 0) { sx.fillStyle = "rgba(255,60,50,.95)"; sx.beginPath(); sx.arc(W - f * 5.2, f * 1.45, f * .38, 0, TAU); sx.fill(); }
+    sx.fillStyle = "rgba(190,255,200,.9)";
+    sx.fillText("REC", W - f * 4.4, f * 1.8);
+    const secs = Math.floor(t), ts = "00:00:" + String(secs % 60).padStart(2, "0") + ":" + String(Math.floor((t % 1) * 24)).padStart(2, "0");
+    sx.fillText(ts, W - f * 9.5, H - f);
+    sx.fillText("IR · " + (spirit ? spirit.name.toUpperCase() : "ESPECTRO"), f, H - f);
+  }
+
+  function drawMessage(text, shown) {
+    if (!text) return;
+    const W = sc.width, H = sc.height, f = Math.max(18, W / 16);
+    sx.font = "700 " + f + "px 'Cinzel', serif";
+    const words = text.toUpperCase().slice(0, shown).split(" "), lines = [];
+    let line = "";
+    words.forEach(w => { const t = line ? line + " " + w : w; if (sx.measureText(t).width > W * .86 && line) { lines.push(line); line = w; } else line = t; });
+    if (line) lines.push(line);
+    const top = H * .5 - lines.length * f * .6;
+    sx.fillStyle = "rgba(0,0,0,.45)"; sx.fillRect(0, top - f * 1.1, W, lines.length * f * 1.25 + f * .9);
+    sx.shadowColor = "rgba(200,40,30,1)"; sx.shadowBlur = f * .6;
+    sx.fillStyle = "rgba(255,110,95,.95)";
+    lines.forEach((l, i) => { const tw = sx.measureText(l).width; sx.fillText(l, (W - tw) / 2, top + i * f * 1.25); });
+    sx.shadowBlur = 0;
+  }
+
+  function fitCanvas(w, h) {
+    const k = Math.min(1, 1080 / Math.max(w, h));
+    sc.width = Math.max(2, Math.round(w * k)); sc.height = Math.max(2, Math.round(h * k));
+  }
+
+  function stopSpec() {
+    cancelAnimationFrame(specRAF);
+    try { svid.pause(); } catch (e) {}
+    if (spec && spec.url) URL.revokeObjectURL(spec.url);
+    spec = null;
+  }
+  function closeSpec() {
+    stopSpec();
+    specframe.hidden = true; spectools.hidden = true;
+    sStatus("Toma una foto o graba unos segundos de la habitación. La cámara revela lo que el ojo no ve.");
+  }
+
+  // ---- foto ----
+  async function spectralPhoto(file) {
+    stopSpec();
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = url;
+    try { await img.decode(); } catch (e) { sStatus("No se pudo abrir la foto. Prueba con otra.", true); return; }
+    fitCanvas(img.naturalWidth, img.naturalHeight);
+    spec = { kind: "photo", url, src: img, t0: performance.now(), msg: spectralMessage() };
+    sx.drawImage(img, 0, 0, sc.width, sc.height);
+    spec.gx = darkestSpot();
+    spec.ghost = makeGhost(Math.round(sc.height * rnd(.5, .62)));
+    specframe.hidden = false; spectools.hidden = true;
+    specframe.scrollIntoView({ behavior: "smooth", block: "center" });
+    sStatus("Analizando espectro infrarrojo…");
+    SFX.estatica();
+    runPhoto();
+  }
+  function runPhoto() {
+    const cur = spec;
+    let revealed = false, spoke = false;
+    const loop = now => {
+      if (spec !== cur) return;
+      const t = (now - cur.t0) / 1000;
+      drawNight(cur.src, t);
+      if (t < 3.2) {
+        // barrido de análisis
+        const y = (t / 3.2) * sc.height;
+        const band = sx.createLinearGradient(0, y - 60, 0, y + 6);
+        band.addColorStop(0, "rgba(150,255,170,0)"); band.addColorStop(1, "rgba(150,255,170,.45)");
+        sx.fillStyle = band; sx.fillRect(0, y - 60, sc.width, 66);
+        hud(t, "ANALIZANDO " + Math.min(99, Math.floor(t / 3.2 * 100)) + "%");
+      } else {
+        if (!revealed) { revealed = true; SFX.lamento(); SFX.susurro(); sStatus("Anomalía detectada en la imagen.", true); }
+        const rt = t - 3.2;
+        const flick = Math.random() < .08 ? .3 : 1;
+        drawGhost(Math.min(.62, rt / 1.8 * .62) * flick);
+        hud(t, "ANOMALÍA DETECTADA", true);
+        if (rt > 2.4) {
+          const shown = Math.floor((rt - 2.4) * 14);
+          drawMessage(cur.msg, shown);
+          if (!spoke) { spoke = true; speak(cur.msg); }
+          if (shown > cur.msg.length + 10) spectools.hidden = false;
+        }
+      }
+      specRAF = requestAnimationFrame(loop);
+    };
+    specRAF = requestAnimationFrame(loop);
+  }
+
+  // ---- video ----
+  async function spectralVideo(file) {
+    stopSpec();
+    const url = URL.createObjectURL(file);
+    spec = { kind: "video", url, src: svid, msg: spectralMessage() };
+    const cur = spec;
+    svid.src = url; svid.muted = true; svid.playsInline = true;
+    await new Promise(res => { svid.onloadeddata = res; svid.onerror = res; });
+    if (spec !== cur) return;
+    if (!svid.videoWidth) { sStatus("No se pudo abrir el video. Prueba grabando otro.", true); return; }
+    fitCanvas(svid.videoWidth, svid.videoHeight);
+    specframe.hidden = false; spectools.hidden = true;
+    specframe.scrollIntoView({ behavior: "smooth", block: "center" });
+    sStatus("Reproduciendo con filtro infrarrojo…");
+    cur.ghost = makeGhost(Math.round(sc.height * rnd(.5, .62)));
+    playVideo(cur);
+  }
+  function playVideo(cur) {
+    const dur = isFinite(svid.duration) && svid.duration > 0 ? svid.duration : 6;
+    cur.win = { a: dur * rnd(.35, .55), len: Math.max(.8, Math.min(2.2, dur * .3)) };
+    cur.placed = false; cur.announced = false; cur.ended = false;
+    let endT = 0, spoke = false;
+    svid.currentTime = 0;
+    svid.play().catch(() => {});
+    const loop = now => {
+      if (spec !== cur) return;
+      const t = svid.currentTime;
+      drawNight(svid, t);
+      const inWin = t >= cur.win.a && t <= cur.win.a + cur.win.len;
+      if (inWin) {
+        if (!cur.placed) { cur.placed = true; cur.gx = darkestSpot(); drawNight(svid, t); }
+        if (!cur.announced) { cur.announced = true; SFX.estatica(); SFX.lamento(); }
+        const p = (t - cur.win.a) / cur.win.len;
+        const env = Math.sin(Math.PI * p);
+        drawGhost(env * .68 * (Math.random() < .12 ? .2 : 1));
+      }
+      hud(t, inWin ? "ANOMALÍA DETECTADA" : "IR ACTIVO", inWin);
+      if (svid.ended || cur.ended) {
+        if (!cur.ended) { cur.ended = true; endT = now; sStatus("Mensaje recibido.", true); SFX.susurro(); }
+        const et = (now - endT) / 1000;
+        drawGhost(.25 * (Math.random() < .1 ? 0 : 1)); // queda una sombra al final
+        const shown = Math.floor(et * 14);
+        drawMessage(cur.msg, shown);
+        if (!spoke) { spoke = true; speak(cur.msg); }
+        if (shown > cur.msg.length + 10) spectools.hidden = false;
+      }
+      specRAF = requestAnimationFrame(loop);
+    };
+    specRAF = requestAnimationFrame(loop);
+  }
+
+  document.getElementById("photoIn").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    if (soundOn) { ensureAudio(); unlockSpeech(); }
+    spectralPhoto(f);
+  });
+  document.getElementById("videoIn").addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    if (soundOn) { ensureAudio(); unlockSpeech(); }
+    spectralVideo(f);
+  });
+  document.getElementById("specagain").addEventListener("click", () => {
+    if (!spec) return;
+    if (soundOn) unlockSpeech();
+    spectools.hidden = true;
+    spec.msg = spectralMessage();
+    if (spec.kind === "photo") { spec.t0 = performance.now(); sStatus("Analizando espectro infrarrojo…"); cancelAnimationFrame(specRAF); runPhoto(); }
+    else { cancelAnimationFrame(specRAF); sStatus("Reproduciendo con filtro infrarrojo…"); playVideo(spec); }
+  });
+  document.getElementById("specclose").addEventListener("click", closeSpec);
+
   /* ---------- gestos secretos del médium ---------- */
   const medium = document.getElementById("medium");
   const sun = document.getElementById("sun");
@@ -1558,6 +1912,7 @@
     stopRadar();
     leaveSeance();
     forced = null;
+    closeSpec();
     keys = []; render(); question.value = "";
     logEl.textContent = "";
     answerEl.classList.add("idle");
