@@ -378,7 +378,7 @@
       <li>Sin detenerte, escribe la respuesta secreta. Por ejemplo <code>.Tu abuela.</code> Cada letra que tecleas se transforma en la siguiente letra de la petición.</li>
       <li>Escribe otro punto <code>.</code> para cerrar el secreto y sigue tecleando hasta completar la petición.</li>
       <li>Deja que tu víctima escriba la pregunta. El espíritu deletreará tu respuesta en la tabla.</li>
-      <li>Sin respuesta secreta, el espíritu se niega a hablar o responde algo inquietante.</li>
+      <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 30 frases e insiste en hablar con Ricardo.</li>
       <li>Radar: escribe <code>..</code> en el campo de pregunta (o en cualquier parte de la página con el teclado). Aparece la calibración: anota cuántas personas hay en la habitación y pulsa «Iniciar escaneo». Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
   </details>
@@ -477,39 +477,59 @@
   });
 
   /* ---------- respuestas del más allá ---------- */
-  const REFUSALS = [
-    "Pídelo como se debe",
-    "No me hables así",
-    "Tu petición no me alcanza",
-    "Aquí abajo no se oye nada",
-  ];
-  const OMENS = [
-    "Mira detrás de ti",
-    "No estás solo",
-    "Ya viene",
-    "Esta noche no duermas",
-    "Apaga la luz",
-    "Te estoy viendo",
-    "Ciérralo antes de las tres",
-    "Pronto lo sabrás",
+  // Sin respuesta secreta, el espíritu esquiva la pregunta y exige a Ricardo
+  const EVASIVE = [
+    "Solo hablo con Ricardo",
+    "Dónde está Ricardo",
+    "Traigan a Ricardo",
+    "Tú no eres Ricardo",
+    "Quiero a Ricardo aquí",
+    "Ricardo sabe por qué vine",
+    "Llama a Ricardo ahora",
+    "A ti no te respondo",
+    "Ricardo me dejó entrar",
+    "Pregúntale a Ricardo",
+    "Ricardo me prometió algo",
+    "Esperaré a Ricardo aquí",
+    "Ricardo no debió dormirse",
+    "Ricardo sabe mi nombre",
+    "Dile a Ricardo que volví",
+    "Ricardo me está oyendo",
+    "Sin Ricardo no hablo",
+    "Ricardo abrió la puerta",
+    "Estoy detrás de Ricardo",
+    "Ricardo me debe algo",
+    "Que Ricardo mire atrás",
+    "Ricardo no está solo",
+    "Ricardo no mires el espejo",
+    "Tú no Ricardo sí",
+    "Ricardo cuenta hasta tres",
+    "Ricardo ya sabe la respuesta",
+    "Esa voz no es de Ricardo",
+    "Busco a Ricardo desde 1987",
+    "Ricardo sueña conmigo",
+    "Esta noche visito a Ricardo",
   ];
   const pick = a => a[Math.floor(Math.random() * a.length)];
-
-  function normalize(s) {
-    return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]/g, "");
+  // bolsa barajada: no repite frase hasta agotar las 30
+  let bag = [];
+  function nextEvasive() {
+    if (!bag.length) {
+      bag = EVASIVE.slice();
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [bag[i], bag[j]] = [bag[j], bag[i]];
+      }
+    }
+    return bag.pop();
   }
-  const PHRASE_N = normalize(PHRASE);
 
   function decide() {
     const q = question.value.trim();
     const { secret } = derive(keys);
     if (!q) return { text: "Pregunta algo", kind: "refuse" };
-    if (!/\?\s*$/.test(q)) return { text: "Eso no es una pregunta", kind: "refuse" };
     if (secret) return { text: secret, kind: "true" };
-    const petOk = normalize(petition.value) === PHRASE_N;
-    if (!petOk) return { text: pick(REFUSALS), kind: "refuse" };
-    if (Math.random() < .3) return { text: Math.random() < .5 ? "SÍ" : "NO", kind: "word" };
-    return { text: pick(OMENS), kind: "omen" };
+    return { text: nextEvasive(), kind: Math.random() < .4 ? "omen" : "refuse" };
   }
 
   /* ---------- sonido ---------- */
@@ -592,7 +612,8 @@
 
   async function spell(text) {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const step = reduced ? 350 : 950;
+    const n = tokens(text).length || 1;
+    const step = reduced ? 350 : Math.max(480, Math.min(950, 15000 / n));
     board.classList.add("possessed");
     answerEl.classList.remove("idle");
     answerEl.textContent = "";
