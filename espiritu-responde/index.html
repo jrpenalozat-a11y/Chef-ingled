@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Detector de Almas en Pena</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -600,12 +601,12 @@
       <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
       <li>Respuesta de sí o no: toca una vez la palabra «Sí» o «No» del tablero. Parpadea un instante y la próxima respuesta será esa. Toca de nuevo la misma palabra para cancelar. Esto tiene prioridad sobre todo lo demás.</li>
       <li>Con el sonido encendido, el espíritu dice la respuesta en voz alta con voz de ultratumba.</li>
-      <li>Llamada fantasma: al pulsar «Cerrar sesión» la pantalla se pone negra como si la app se apagara. A los 15–25 segundos entra una llamada de un número privado. Al contestar se oye estática y respiración, y el espíritu dice la respuesta con su voz (la secreta si la escribiste antes de cerrar). Si la rechazan, vuelve a sonar; a la segunda se contesta sola. Para salir de la pantalla negra sin esperar, mantenla apretada 3 segundos.</li>
+      <li>Llamada fantasma: al pulsar «Cerrar sesión» la pantalla se pone negra como si la app se apagara. A los 8–14 segundos entra una llamada de un número privado. Si bloquean el teléfono o cierran la app, la llamada entra apenas vuelvan a abrirla. Al contestar se oye estática y respiración, y el espíritu dice la respuesta con su voz (la secreta si la escribiste antes de cerrar). Si la rechazan, vuelve a sonar; a la segunda se contesta sola. Para salir de la pantalla negra sin esperar, mantenla apretada 3 segundos.</li>
       <li>Cámara espectral: pulsa «Tomar foto» o «Grabar video» (la cámara se abre dentro de la app con visión nocturna; graba hasta 8 segundos) o toma una foto, apuntando a un rincón oscuro. En el video la luz baja, aparece una figura que se acerca y al final un rostro salta a la pantalla. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
       <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Escribe los nombres de los presentes separados por coma (o solo cuántos son), pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada uno. Con nombres, el espíritu los menciona en sus respuestas y dice junto a quién está. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
     <p class="sb-title">Llamada fantasma</p>
-    <label class="sb-check"><input type="checkbox" id="callOnClose" checked> Al pulsar «Cerrar sesión», la app se apaga y a los 15–25 segundos llega la llamada</label>
+    <label class="sb-check"><input type="checkbox" id="callOnClose" checked> Al pulsar «Cerrar sesión», la app se apaga y a los 8–14 segundos llega la llamada</label>
     <div class="soundboard">
       <button type="button" id="callSoon">Llamada en 10 segundos</button>
       <button type="button" id="callNow">Llamada ahora</button>
@@ -1338,8 +1339,8 @@
     if (!M || !c) return false;
     const t = text.toLowerCase();
     const [voiceBuf, whisperBuf] = await Promise.all([
-      synth(M, t, { variant: "croak", pitch: 0, speed: 120, wordgap: 4, amplitude: 120 }),
-      synth(M, t, { variant: "whisperf", pitch: 0, speed: 128, wordgap: 4, amplitude: 110 }),
+      synth(M, t, { variant: "m3", pitch: 0, speed: 112, wordgap: 6, amplitude: 120 }),
+      synth(M, t, { variant: "whisperf", pitch: 0, speed: 112, wordgap: 6, amplitude: 110 }),
     ]);
     if (!voiceBuf) return false;
     const t0 = c.currentTime + .05;
@@ -1347,12 +1348,14 @@
     const bus = c.createGain(); bus.gain.value = 1.2;
     // cuerpo grave y ronco
     const low = c.createBiquadFilter(); low.type = "lowshelf"; low.frequency.value = 180; low.gain.value = 10;
-    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400;
-    bus.connect(low); low.connect(lp); lp.connect(out);
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 4200;
+    // realce de la zona donde se entienden las consonantes
+    const clear = c.createBiquadFilter(); clear.type = "peaking"; clear.frequency.value = 2500; clear.Q.value = 1; clear.gain.value = 5;
+    bus.connect(low); low.connect(clear); clear.connect(lp); lp.connect(out);
     // gruñido: modulación en anillo con una onda lenta, mezclada con la voz limpia
     const ring = c.createGain(); ring.gain.value = 0;
     const rOsc = c.createOscillator(); rOsc.frequency.value = 38; rOsc.connect(ring.gain);
-    const ringMix = c.createGain(); ringMix.gain.value = .55; ring.connect(ringMix); ringMix.connect(bus);
+    const ringMix = c.createGain(); ringMix.gain.value = .18; ring.connect(ringMix); ringMix.connect(bus);
     rOsc.start(t0);
     const layer = (buf, rate, gain, drive) => {
       const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
@@ -1361,17 +1364,17 @@
       src.start(t0);
       return buf.duration / rate;
     };
-    const d1 = layer(voiceBuf, .66, .9, 6);    // voz principal, mucho más grave
-    const d2 = layer(voiceBuf, .56, .55, 14);  // segunda voz aún más grave y desfasada
+    const d1 = layer(voiceBuf, .76, 1, 2);     // voz principal, grave pero entendible
+    const d2 = layer(voiceBuf, .7, .28, 6);    // segunda voz más grave, de fondo
     let dur = Math.max(d1, d2);
     if (whisperBuf) {
       // susurro que acompaña, abierto hacia los lados y con mucho eco
       [-.8, .8].forEach((pan, i) => {
         const w = c.createBufferSource(); w.buffer = whisperBuf; w.playbackRate.value = .8 + i * .04;
         const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 900;
-        const g = c.createGain(); g.gain.value = .5;
+        const g = c.createGain(); g.gain.value = .22;
         w.connect(hp); hp.connect(g); g.connect(voice(pan, .9));
-        w.start(t0 + .12 + i * .09);
+        w.start(t0 + .3 + i * .15);
         dur = Math.max(dur, whisperBuf.duration / w.playbackRate.value + .2);
       });
     }
@@ -1462,7 +1465,7 @@
     const out = [];
     for (const raw of text.toUpperCase()) {
       if (raw === "Ñ") { out.push("Ñ"); continue; }
-      const c = raw.normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const c = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       if (pos[c]) out.push(c);
       else if (c === " ") out.push(" ");
     }
@@ -2572,16 +2575,44 @@
     return () => { clearInterval(iv); g.gain.setTargetAtTime(0, c.currentTime, .1); n.stop(c.currentTime + .5); };
   }
 
+  // la llamada pendiente también se guarda en el teléfono: si cierran la app,
+  // al volver a abrirla la llamada entra enseguida
+  const CALL_KEY = "almas-llamada";
+  let callDue = null; // { at, msg, ghost }
+  function saveDue() { try { callDue ? localStorage.setItem(CALL_KEY, JSON.stringify(callDue)) : localStorage.removeItem(CALL_KEY); } catch (e) {} }
   function fakeShutdown(msg, ghost) {
     blackout.hidden = false;
     stopDrone(); clearTimeout(ambientTimer);
     keepAwake();
-    scheduleCall(rnd(15000, 25000), msg, ghost);
+    scheduleCall(rnd(8000, 14000), msg, ghost);
   }
   function scheduleCall(ms, msg, ghost) {
     clearTimeout(pendingCall);
-    pendingCall = setTimeout(() => incomingCall(msg, ghost), ms);
+    callDue = { at: Date.now() + ms, msg: msg || spectralMessage(), ghost: ghost || (spirit && spirit.name) || "" };
+    saveDue();
+    pendingCall = setTimeout(fireDue, ms);
   }
+  function fireDue() {
+    clearTimeout(pendingCall);
+    if (!callDue || call) return;
+    const d = callDue; callDue = null; saveDue();
+    incomingCall(d.msg, d.ghost);
+  }
+  // si el teléfono se bloqueó o se salió de la app, la llamada entra apenas vuelven
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (wakeLock === null && !blackout.hidden) keepAwake();
+    if (callDue && (Date.now() >= callDue.at - 2000 || !blackout.hidden)) setTimeout(fireDue, 700);
+  });
+  // la app se abrió de nuevo con una llamada pendiente (de los últimos 30 minutos)
+  try {
+    const saved = JSON.parse(localStorage.getItem(CALL_KEY) || "null");
+    if (saved && Date.now() - saved.at < 30 * 60 * 1000) {
+      callDue = saved;
+      blackout.hidden = false;
+      pendingCall = setTimeout(fireDue, Math.max(2500, Math.min(6000, saved.at - Date.now())));
+    } else if (saved) localStorage.removeItem(CALL_KEY);
+  } catch (e) {}
   function stopRinging() {
     if (!call) return;
     clearTimeout(call.ringTimer); clearTimeout(call.auto);
@@ -2613,7 +2644,7 @@
     callRejects++;
     if (callRejects >= 2) {
       // a la segunda vez no deja rechazar: vuelve y se contesta sola
-      setTimeout(() => { incomingCall(msg, ghost); answerCall(true); }, 2500);
+      setTimeout(() => { if (call) return; incomingCall(msg, ghost); answerCall(true); }, 2500);
     } else {
       scheduleCall(3500, msg, ghost);
     }
@@ -2683,7 +2714,7 @@
   blackout.addEventListener("pointerdown", () => {
     clearTimeout(blackPress);
     blackPress = setTimeout(() => {
-      clearTimeout(pendingCall); blackout.hidden = true; releaseAwake(); callRejects = 0;
+      clearTimeout(pendingCall); callDue = null; saveDue(); blackout.hidden = true; releaseAwake(); callRejects = 0;
       if (soundOn && armed) startDrone();
     }, 3000);
   });
