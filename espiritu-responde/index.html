@@ -1,0 +1,594 @@
+<title>El Espíritu Responde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=IM+Fell+English:ital@0;1&family=Special+Elite&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --void: #07060a;
+    --ash: #15101a;
+    --wood: #2a1a14;
+    --wood-hi: #3d261b;
+    --bone: #dccfbb;
+    --bone-dim: #8f8272;
+    --blood: #7a0f14;
+    --ember: #c8392d;
+    --candle: #e3a54e;
+    --display: "UnifrakturCook", "Old English Text MT", "Luminari", serif;
+    --body: "IM Fell English", "Iowan Old Style", "Palatino", Georgia, serif;
+    --type: "Special Elite", "Courier New", ui-monospace, monospace;
+  }
+  html, body { min-height: 100%; }
+  body {
+    background: var(--void);
+    color: var(--bone);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.55;
+    padding-inline: 16px;
+    padding-block: 24px 48px;
+    overflow-x: hidden;
+    position: relative;
+  }
+  /* niebla, grano y vela */
+  body::before, body::after {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    background:
+      radial-gradient(ellipse 60% 45% at 50% 38%, rgba(227,165,78,.13), transparent 70%),
+      radial-gradient(ellipse 120% 90% at 50% 40%, transparent 40%, rgba(0,0,0,.85) 100%);
+    animation: flicker 5s infinite steps(1);
+  }
+  body::after {
+    opacity: .12;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+  }
+  @keyframes flicker {
+    0%, 100% { opacity: 1; } 8% { opacity: .82; } 9% { opacity: 1; }
+    37% { opacity: .9; } 38% { opacity: .7; } 40% { opacity: 1; }
+    71% { opacity: .88; } 72% { opacity: 1; }
+  }
+
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 760px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 28px;
+  }
+
+  header { text-align: center; display: flex; flex-direction: column; gap: 6px; }
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(2.6rem, 9vw, 4.6rem);
+    line-height: 1;
+    margin: 0;
+    color: var(--bone);
+    text-shadow: 0 0 18px rgba(200,57,45,.45), 0 2px 0 var(--blood);
+    text-wrap: balance;
+    animation: breathe 7s ease-in-out infinite;
+  }
+  @keyframes breathe { 50% { text-shadow: 0 0 30px rgba(200,57,45,.7), 0 2px 0 var(--blood); letter-spacing: .01em; } }
+  .sub {
+    font-style: italic; color: var(--bone-dim); margin: 0;
+    max-width: 44ch; margin-inline: auto; text-wrap: balance;
+  }
+
+  /* ----- ritual (formulario) ----- */
+  .ritual { display: flex; flex-direction: column; gap: 18px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label {
+    font-family: var(--type);
+    font-size: .78rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--bone-dim);
+  }
+  label b { color: var(--ember); font-weight: normal; }
+  input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    font-family: var(--type);
+    font-size: 1.05rem;
+    color: var(--bone);
+    background: rgba(21,16,26,.85);
+    border: 1px solid #3a2a2e;
+    border-bottom: 2px solid var(--blood);
+    padding: 12px 14px;
+    border-radius: 2px;
+    caret-color: var(--ember);
+    transition: border-color .3s, box-shadow .3s;
+  }
+  input[type="text"]::placeholder { color: #5e5250; }
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--ember);
+    box-shadow: 0 0 0 1px var(--ember), 0 0 24px rgba(200,57,45,.35);
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  button {
+    font-family: var(--type);
+    font-size: .95rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 12px 20px;
+    transition: background .2s, color .2s, box-shadow .2s;
+  }
+  button:focus-visible { outline: 2px solid var(--candle); outline-offset: 3px; }
+  .primary {
+    background: var(--blood); color: var(--bone);
+    border: 1px solid var(--ember);
+    flex: 1 1 200px;
+  }
+  .primary:hover { background: var(--ember); box-shadow: 0 0 22px rgba(200,57,45,.55); }
+  .primary:disabled { opacity: .5; cursor: wait; }
+  .ghost { background: transparent; color: var(--bone-dim); border: 1px solid #3a2a2e; }
+  .ghost:hover { color: var(--bone); border-color: var(--bone-dim); }
+  .ghost[aria-pressed="true"] { color: var(--candle); border-color: var(--candle); }
+
+  /* ----- tablero ----- */
+  .board {
+    position: relative;
+    width: 100%; max-width: 100%;
+    aspect-ratio: 3 / 2;
+    border-radius: 18px / 26px;
+    background:
+      radial-gradient(ellipse at 50% 45%, var(--wood-hi), var(--wood) 60%, #150c09 100%);
+    box-shadow: inset 0 0 0 2px #120a07, inset 0 0 0 6px #4a2e20, inset 0 0 60px rgba(0,0,0,.8), 0 20px 60px rgba(0,0,0,.7);
+    overflow: hidden;
+    user-select: none;
+  }
+  .board::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(92deg, rgba(0,0,0,.08) 0 2px, transparent 2px 9px);
+    pointer-events: none;
+  }
+  .glyph {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-family: var(--display);
+    color: #cdb89a;
+    font-size: clamp(.95rem, 3.6vw, 1.7rem);
+    line-height: 1;
+    text-shadow: 0 1px 0 #000;
+    transition: color .25s, text-shadow .25s;
+  }
+  .glyph.num { font-family: var(--body); font-size: clamp(.8rem, 2.8vw, 1.25rem); }
+  .glyph.word { font-size: clamp(1.1rem, 4.4vw, 2.1rem); }
+  .glyph.lit { color: #fff1d8; text-shadow: 0 0 10px var(--candle), 0 0 26px var(--ember); }
+  .sun, .moon {
+    position: absolute; top: 7%; font-size: clamp(1.1rem, 4vw, 2rem);
+    color: #8a6a4a; opacity: .7;
+  }
+  .sun { left: 5%; } .moon { right: 5%; }
+
+  .planchette {
+    position: absolute;
+    left: 50%; top: 60%;
+    width: 15%;
+    aspect-ratio: 1 / 1.15;
+    transform: translate(-50%, -38%) rotate(var(--tilt, 0deg));
+    transition: left .75s cubic-bezier(.45,.05,.3,1), top .75s cubic-bezier(.45,.05,.3,1), transform .75s;
+    pointer-events: none;
+    filter: drop-shadow(0 8px 10px rgba(0,0,0,.8));
+  }
+  .planchette svg { width: 100%; height: 100%; display: block; }
+  .board.possessed .planchette { animation: tremble .12s infinite; }
+  @keyframes tremble { 50% { margin-left: 1px; margin-top: -1px; } }
+
+  /* ----- respuesta ----- */
+  .answer {
+    min-height: 3.2em;
+    text-align: center;
+    font-family: var(--display);
+    font-size: clamp(1.6rem, 6vw, 2.6rem);
+    letter-spacing: .06em;
+    color: var(--ember);
+    text-shadow: 0 0 16px rgba(200,57,45,.5);
+    word-break: break-word;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .answer.idle { font-family: var(--body); font-style: italic; font-size: 1.05rem; color: var(--bone-dim); text-shadow: none; letter-spacing: 0; }
+  .log {
+    font-family: var(--type); font-size: .85rem; color: var(--bone-dim);
+    border-top: 1px solid #2a1e22; padding-top: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .log:empty { display: none; }
+  .log p { margin: 0; }
+  .log q { color: var(--bone); quotes: "«" "»"; }
+  .log span { color: var(--ember); }
+
+  details {
+    border: 1px dashed #3a2a2e; padding: 12px 16px; border-radius: 2px;
+    background: rgba(7,6,10,.6);
+  }
+  summary { cursor: pointer; font-family: var(--type); font-size: .82rem; letter-spacing: .12em; text-transform: uppercase; color: var(--bone-dim); }
+  summary:focus-visible { outline: 2px solid var(--candle); outline-offset: 3px; }
+  details ol { margin: 12px 0 4px; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; max-width: 62ch; }
+  details code { font-family: var(--type); color: var(--candle); }
+
+  /* ----- sustos ----- */
+  .flash {
+    position: fixed; inset: 0; z-index: 5; pointer-events: none;
+    background: radial-gradient(circle at 50% 45%, rgba(200,57,45,.0), rgba(122,15,20,.85));
+    opacity: 0;
+  }
+  .flash.on { animation: flash .9s ease-out; }
+  @keyframes flash { 0% { opacity: 0; } 8% { opacity: 1; } 20% { opacity: .2; } 30% { opacity: .9; } 100% { opacity: 0; } }
+  .shake { animation: shake .5s; }
+  @keyframes shake {
+    10%, 90% { transform: translate(-2px, 1px); } 20%, 80% { transform: translate(4px, -2px); }
+    30%, 50%, 70% { transform: translate(-6px, 3px); } 40%, 60% { transform: translate(6px, -3px); }
+  }
+  .eyes {
+    position: fixed; left: 50%; top: 18%; z-index: 4; pointer-events: none;
+    transform: translateX(-50%);
+    display: flex; gap: 42px; opacity: 0;
+  }
+  .eyes i { width: 16px; height: 7px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 14px 4px rgba(200,57,45,.8); display: block; }
+  .eyes.on { animation: eyes 2.6s ease-in-out; }
+  @keyframes eyes { 0%, 100% { opacity: 0; } 20%, 70% { opacity: 1; } 45% { opacity: .15; } 50% { opacity: 1; } }
+
+  @media (max-width: 480px) {
+    body { font-size: 16px; }
+    .board { aspect-ratio: 4 / 3; }
+    .eyes { gap: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+  }
+</style>
+
+<div class="flash" id="flash"></div>
+<div class="eyes" id="eyes" aria-hidden="true"><i></i><i></i></div>
+
+<main class="wrap" id="wrap">
+  <header>
+    <h1>El Espíritu Responde</h1>
+    <p class="sub">Escribe la petición completa, luego tu pregunta. Si lo pides con respeto, el espíritu moverá la tabla.</p>
+  </header>
+
+  <div class="board" id="board" aria-label="Tablero de espiritismo">
+    <span class="sun" aria-hidden="true">☼</span>
+    <span class="moon" aria-hidden="true">☾</span>
+    <div class="planchette" id="planchette" aria-hidden="true">
+      <svg viewBox="0 0 100 115">
+        <defs>
+          <radialGradient id="pw" cx="50%" cy="40%" r="70%">
+            <stop offset="0" stop-color="#e9dcc5"/>
+            <stop offset="1" stop-color="#9c876a"/>
+          </radialGradient>
+        </defs>
+        <path d="M50 2 C80 2 98 40 98 70 C98 100 78 113 50 113 C22 113 2 100 2 70 C2 40 20 2 50 2 Z" fill="url(#pw)" stroke="#3a2618" stroke-width="3"/>
+        <circle cx="50" cy="38" r="17" fill="#1b0f0b" stroke="#3a2618" stroke-width="3"/>
+        <circle cx="50" cy="38" r="12" fill="rgba(227,165,78,.18)"/>
+        <path d="M30 80 Q50 92 70 80" fill="none" stroke="#5a3f2a" stroke-width="2"/>
+        <circle cx="50" cy="96" r="3" fill="#5a3f2a"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="answer idle" id="answer" aria-live="polite">La tabla espera tu pregunta.</div>
+
+  <form class="ritual" id="ritual" autocomplete="off">
+    <div class="field">
+      <label for="petition">Petición <b>·</b> escríbela entera</label>
+      <input type="text" id="petition" placeholder="Espíritu, por favor responde la siguiente pregunta:"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="question">Pregunta <b>·</b> termina con ?</label>
+      <input type="text" id="question" placeholder="¿Quién camina por mi casa de noche?"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary" id="ask">Invocar</button>
+      <button type="button" class="ghost" id="sound" aria-pressed="false">Sonido: apagado</button>
+      <button type="button" class="ghost" id="reset">Cerrar sesión</button>
+    </div>
+  </form>
+
+  <div class="log" id="log"></div>
+
+  <details>
+    <summary>Solo para el médium (no lo muestres)</summary>
+    <ol>
+      <li>En el campo de petición, escribe primero un punto <code>.</code> Nadie lo verá: en pantalla aparecerá la petición normal.</li>
+      <li>Sin detenerte, escribe la respuesta secreta. Por ejemplo <code>.Tu abuela.</code> Cada letra que tecleas se transforma en la siguiente letra de la petición.</li>
+      <li>Escribe otro punto <code>.</code> para cerrar el secreto y sigue tecleando hasta completar la petición.</li>
+      <li>Deja que tu víctima escriba la pregunta. El espíritu deletreará tu respuesta en la tabla.</li>
+      <li>Sin respuesta secreta, el espíritu se niega a hablar o responde algo inquietante.</li>
+    </ol>
+  </details>
+</main>
+
+<script>
+(() => {
+  const PHRASE = "Espíritu, por favor responde la siguiente pregunta:";
+  const board = document.getElementById("board");
+  const planchette = document.getElementById("planchette");
+  const petition = document.getElementById("petition");
+  const question = document.getElementById("question");
+  const answerEl = document.getElementById("answer");
+  const logEl = document.getElementById("log");
+  const askBtn = document.getElementById("ask");
+  const soundBtn = document.getElementById("sound");
+  const wrap = document.getElementById("wrap");
+
+  /* ---------- tablero ---------- */
+  const pos = {};
+  function place(key, text, x, y, cls) {
+    const s = document.createElement("span");
+    s.className = "glyph" + (cls ? " " + cls : "");
+    s.textContent = text;
+    s.style.left = x + "%";
+    s.style.top = y + "%";
+    board.appendChild(s);
+    pos[key] = { x, y, el: s };
+  }
+  const row1 = "ABCDEFGHIJKLM".split("");
+  const row2 = "NÑOPQRSTUVWXYZ".split("");
+  const arc = (arr, yBase, lift, x0, x1) => arr.forEach((c, i) => {
+    const t = i / (arr.length - 1);
+    const x = x0 + (x1 - x0) * t;
+    const y = yBase - lift * Math.sin(Math.PI * t);
+    place(c, c, x, y);
+  });
+  arc(row1, 38, 12, 9, 91);
+  arc(row2, 56, 10, 7, 93);
+  "1234567890".split("").forEach((n, i) => place(n, n, 20 + i * (60 / 9), 72, "num"));
+  place("SÍ", "Sí", 16, 11, "word");
+  place("NO", "No", 84, 11, "word");
+  place("ADIÓS", "Adiós", 50, 88, "word");
+  const REST = { x: 50, y: 62 };
+
+  function moveTo(p, tilt) {
+    planchette.style.left = p.x + "%";
+    planchette.style.top = p.y + "%";
+    planchette.style.setProperty("--tilt", (tilt || 0) + "deg");
+  }
+  moveTo(REST);
+
+  /* ---------- petición con respuesta oculta ---------- */
+  let keys = [];
+  let shown = "";
+
+  function derive(list) {
+    let on = false, used = false, secret = "", out = "";
+    list.forEach((ch, i) => {
+      const toggle = ch === "." && (on || !used);
+      if (toggle) { on = !on; used = true; }
+      else if (on) secret += ch;
+      const masked = used;
+      out += masked ? (PHRASE[i] ?? (on || toggle ? "." : ch)) : ch;
+    });
+    return { out, secret: secret.trim(), on };
+  }
+
+  function render() {
+    const d = derive(keys);
+    shown = d.out;
+    petition.value = shown;
+    const end = shown.length;
+    try { petition.setSelectionRange(end, end); } catch (e) {}
+  }
+
+  petition.addEventListener("input", () => {
+    const now = petition.value;
+    if (now.length > shown.length && now.startsWith(shown)) {
+      keys.push(...Array.from(now.slice(shown.length)));
+    } else if (now.length < shown.length && shown.startsWith(now)) {
+      keys.length = now.length;
+    } else {
+      keys = Array.from(now); // edición a mitad o pegado: se toma literal
+    }
+    render();
+  });
+  // mantener el cursor al final para que el truco no se rompa
+  ["click", "keyup", "focus"].forEach(ev => petition.addEventListener(ev, () => {
+    const end = petition.value.length;
+    if (petition.selectionStart !== end) { try { petition.setSelectionRange(end, end); } catch (e) {} }
+  }));
+  petition.addEventListener("keydown", e => {
+    if (["ArrowLeft", "ArrowRight", "Home", "End", "ArrowUp", "ArrowDown"].includes(e.key)) e.preventDefault();
+    if (e.key === "Enter") { e.preventDefault(); question.focus(); }
+  });
+
+  /* ---------- respuestas del más allá ---------- */
+  const REFUSALS = [
+    "Pídelo como se debe",
+    "No me hables así",
+    "Tu petición no me alcanza",
+    "Aquí abajo no se oye nada",
+  ];
+  const OMENS = [
+    "Mira detrás de ti",
+    "No estás solo",
+    "Ya viene",
+    "Esta noche no duermas",
+    "Apaga la luz",
+    "Te estoy viendo",
+    "Ciérralo antes de las tres",
+    "Pronto lo sabrás",
+  ];
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+
+  function normalize(s) {
+    return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]/g, "");
+  }
+  const PHRASE_N = normalize(PHRASE);
+
+  function decide() {
+    const q = question.value.trim();
+    const { secret } = derive(keys);
+    if (!q) return { text: "Pregunta algo", kind: "refuse" };
+    if (!/\?\s*$/.test(q)) return { text: "Eso no es una pregunta", kind: "refuse" };
+    if (secret) return { text: secret, kind: "true" };
+    const petOk = normalize(petition.value) === PHRASE_N;
+    if (!petOk) return { text: pick(REFUSALS), kind: "refuse" };
+    if (Math.random() < .3) return { text: Math.random() < .5 ? "SÍ" : "NO", kind: "word" };
+    return { text: pick(OMENS), kind: "omen" };
+  }
+
+  /* ---------- sonido ---------- */
+  let ctx = null, drone = null, soundOn = false;
+  function ensureAudio() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+  function startDrone() {
+    const c = ensureAudio(); if (!c || drone) return;
+    const g = c.createGain(); g.gain.value = 0; g.connect(c.destination);
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320; lp.connect(g);
+    const oscs = [55, 55.7, 82.4, 110.3].map((f, i) => {
+      const o = c.createOscillator(); o.type = i % 2 ? "sawtooth" : "triangle"; o.frequency.value = f;
+      o.connect(lp); o.start(); return o;
+    });
+    const lfo = c.createOscillator(); lfo.frequency.value = .07;
+    const lg = c.createGain(); lg.gain.value = 140; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    g.gain.linearRampToValueAtTime(.09, c.currentTime + 3);
+    drone = { g, oscs, lfo };
+  }
+  function stopDrone() {
+    if (!drone || !ctx) return;
+    const d = drone; drone = null;
+    d.g.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
+    setTimeout(() => { d.oscs.forEach(o => o.stop()); d.lfo.stop(); }, 1100);
+  }
+  function knock() {
+    if (!soundOn || !ctx) return;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(140, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(48, ctx.currentTime + .18);
+    g.gain.setValueAtTime(.35, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .25);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + .3);
+  }
+  function scream() {
+    if (!soundOn || !ctx) return;
+    const t = ctx.currentTime, len = 1.4;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+    const n = ctx.createBufferSource(); n.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 6;
+    bp.frequency.setValueAtTime(900, t); bp.frequency.exponentialRampToValueAtTime(2600, t + .3); bp.frequency.exponentialRampToValueAtTime(500, t + len);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.5, t + .05); g.gain.exponentialRampToValueAtTime(.001, t + len);
+    const o = ctx.createOscillator(); o.type = "sawtooth";
+    o.frequency.setValueAtTime(620, t); o.frequency.exponentialRampToValueAtTime(1100, t + .25); o.frequency.exponentialRampToValueAtTime(180, t + len);
+    const og = ctx.createGain(); og.gain.setValueAtTime(.12, t); og.gain.exponentialRampToValueAtTime(.001, t + len);
+    n.connect(bp); bp.connect(g); g.connect(ctx.destination);
+    o.connect(og); og.connect(ctx.destination);
+    n.start(t); o.start(t); n.stop(t + len); o.stop(t + len);
+  }
+  soundBtn.addEventListener("click", () => {
+    soundOn = !soundOn;
+    soundBtn.setAttribute("aria-pressed", String(soundOn));
+    soundBtn.textContent = "Sonido: " + (soundOn ? "encendido" : "apagado");
+    if (soundOn) startDrone(); else stopDrone();
+  });
+
+  /* ---------- sesión ---------- */
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let busy = false;
+
+  function tokens(text) {
+    if (text === "SÍ" || text === "NO") return [text];
+    const out = [];
+    for (const raw of text.toUpperCase()) {
+      if (raw === "Ñ") { out.push("Ñ"); continue; }
+      const c = raw.normalize("NFD").replace(/[̀-ͯ]/g, "");
+      if (pos[c]) out.push(c);
+      else if (c === " ") out.push(" ");
+    }
+    return out;
+  }
+
+  async function spell(text) {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const step = reduced ? 350 : 950;
+    board.classList.add("possessed");
+    answerEl.classList.remove("idle");
+    answerEl.textContent = "";
+    await sleep(reduced ? 100 : 900);
+    let written = "";
+    for (const t of tokens(text)) {
+      if (t === " ") {
+        moveTo(REST, (Math.random() - .5) * 20);
+        written += " ";
+        answerEl.textContent = written;
+        await sleep(step * .7);
+        continue;
+      }
+      const p = pos[t];
+      moveTo(p, (Math.random() - .5) * 24);
+      await sleep(step * .8);
+      p.el.classList.add("lit");
+      knock();
+      written += t === "SÍ" ? "Sí" : t === "NO" ? "No" : t;
+      answerEl.textContent = written;
+      await sleep(step * .35);
+      p.el.classList.remove("lit");
+    }
+    return written.trim();
+  }
+
+  function scare() {
+    const f = document.getElementById("flash");
+    const eyes = document.getElementById("eyes");
+    f.classList.remove("on"); eyes.classList.remove("on"); wrap.classList.remove("shake");
+    void f.offsetWidth;
+    f.classList.add("on"); eyes.classList.add("on"); wrap.classList.add("shake");
+    scream();
+  }
+
+  document.getElementById("ritual").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (busy) return;
+    busy = true; askBtn.disabled = true; askBtn.textContent = "El espíritu escribe…";
+    if (soundOn) ensureAudio();
+    const q = question.value.trim();
+    const r = decide();
+    const said = await spell(r.text);
+    const bye = pos["ADIÓS"];
+    moveTo(bye, 0);
+    await sleep(900);
+    bye.el.classList.add("lit");
+    if (r.kind !== "refuse") scare();
+    await sleep(700);
+    bye.el.classList.remove("lit");
+    board.classList.remove("possessed");
+    moveTo(REST);
+
+    const entry = document.createElement("p");
+    const qq = document.createElement("q"); qq.textContent = q || "(silencio)";
+    const aa = document.createElement("span"); aa.textContent = said || "…";
+    entry.append(qq, " — ", aa);
+    logEl.prepend(entry);
+
+    question.value = "";
+    busy = false; askBtn.disabled = false; askBtn.textContent = "Invocar";
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    keys = []; render(); question.value = "";
+    logEl.textContent = "";
+    answerEl.classList.add("idle");
+    answerEl.textContent = "La tabla espera tu pregunta.";
+    moveTo(REST);
+    petition.focus();
+  });
+})();
+</script>
