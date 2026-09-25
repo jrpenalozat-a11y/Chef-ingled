@@ -609,6 +609,7 @@
       <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
       <li>Respuesta de sí o no: toca una vez la palabra «Sí» o «No» del tablero. Parpadea un instante y la próxima respuesta será esa. Toca de nuevo la misma palabra para cancelar. Esto tiene prioridad sobre todo lo demás.</li>
       <li>Con el sonido encendido, el espíritu dice la respuesta en voz alta con voz de ultratumba.</li>
+      <li>Espíritus: en cada sesión llega uno de 87 (49 demonios con sus propias frases, 30 almas en pena y 8 niños). Cada uno tiene su propia voz. Al pulsar «Cerrar sesión» llega otro.</li>
       <li>Llamada fantasma: al pulsar «Cerrar sesión» la pantalla se pone negra como si la app se apagara. A los 8–14 segundos entra una llamada de un número privado. Si bloquean el teléfono o cierran la app, la llamada entra apenas vuelvan a abrirla. Al contestar suena bajito por el auricular, con sonido de teléfono (hay que acercarlo al oído) y al final grita a todo volumen; con el botón «Altavoz» se escucha fuerte para todos. Se oye estática y respiración, y el espíritu dice la respuesta con su voz (la secreta si la escribiste antes de cerrar). Si la rechazan, vuelve a sonar; a la segunda se contesta sola. Para salir de la pantalla negra sin esperar, mantenla apretada 3 segundos.</li>
       <li>Cámara espectral: pulsa «Tomar foto» o «Grabar video» (la cámara se abre dentro de la app con visión nocturna; graba hasta 8 segundos) o toma una foto, apuntando a un rincón oscuro. En el video la luz baja, aparece una figura que se acerca y al final un rostro salta a la pantalla. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
       <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Escribe los nombres de los presentes separados por coma (o solo cuántos son), pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada uno. Con nombres, el espíritu los menciona en sus respuestas y dice junto a quién está. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
@@ -1365,41 +1366,86 @@
     if (!ab) return null;
     return await new Promise((res, rej) => ctx.decodeAudioData(ab.slice ? ab.slice(0) : ab, res, rej)).catch(() => null);
   }
-  // alma en pena: voz humana, cansada, temblorosa y con eco de pasillo
+  // cada espíritu tiene su propia voz: se deriva de su nombre, así suena siempre igual
+  // y distinta de los demás
+  const voiceCache2 = new Map();
+  function voiceOf(sp) {
+    if (voiceCache2.has(sp.name)) return voiceCache2.get(sp.name);
+    let h = 2166136261;
+    for (const ch of sp.name) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+    const r = () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+    const between = (a, b) => a + r() * (b - a);
+    const choose = arr => arr[Math.floor(r() * arr.length)];
+    let v;
+    if (sp.demon) {
+      const fem = sp.g === "f";
+      v = {
+        variant: fem ? choose(["f1", "f2", "f4"]) : choose(["m1", "m2", "m3", "m6", "m7"]),
+        pitch: Math.round(between(0, fem ? 12 : 18)),
+        speed: Math.round(between(100, 118)),
+        rate: fem ? between(.72, .84) : between(.62, .76),   // cuánto baja el tono
+        rate2: between(.07, .15),                            // separación de la segunda voz
+        gain2: between(.22, .45),
+        drive: between(1.5, 5),
+        ring: between(22, 70), ringMix: between(.14, .34),  // gruñido
+        bass: between(6, 12),
+        whisper: r() < .7,
+      };
+    } else if (sp.child) {
+      v = {
+        variant: choose(["f1", "f4", "f5"]),
+        pitch: Math.round(between(sp.g === "f" ? 72 : 60, sp.g === "f" ? 96 : 84)),
+        speed: Math.round(between(98, 115)),
+        rate: between(1, 1.12),
+        trem: between(4, 7.5), tremDepth: between(.1, .25),
+        delay: between(.2, .4), fb: between(.2, .38),
+      };
+    } else {
+      const fem = sp.g === "f";
+      v = {
+        variant: fem ? choose(["f1", "f2", "f3", "f4"]) : choose(["m1", "m2", "m3", "m4", "m6"]),
+        pitch: Math.round(between(fem ? 25 : 12, fem ? 55 : 40)),
+        speed: Math.round(between(92, 108)),
+        rate: between(.86, .98),
+        trem: between(3.5, 7), tremDepth: between(.12, .3),
+        delay: between(.22, .45), fb: between(.2, .4),
+      };
+    }
+    voiceCache2.set(sp.name, v);
+    return v;
+  }
+
+  // alma en pena o niño: voz humana, temblorosa y con eco de pasillo
   async function soulSpeak(text, sp) {
     const M = await loadMeSpeak();
     const c = live();
     if (!M || !c) return false;
-    const t = text.toLowerCase(), fem = sp && sp.g === "f", kid = sp && sp.child;
+    const v = voiceOf(sp), t = text.toLowerCase(), kid = sp.child;
     const [voiceBuf, whisperBuf] = await Promise.all([
-      kid ? synth(M, t, { variant: "f5", pitch: fem ? 85 : 72, speed: 105, wordgap: 6, amplitude: 120 })
-          : synth(M, t, { variant: fem ? "f2" : "m1", pitch: fem ? 38 : 28, speed: 100, wordgap: 8, amplitude: 120 }),
-      synth(M, t, { variant: "whisperf", pitch: kid ? 70 : fem ? 30 : 10, speed: kid ? 105 : 100, wordgap: 8, amplitude: 110 }),
+      synth(M, t, { variant: v.variant, pitch: v.pitch, speed: v.speed, wordgap: 7, amplitude: 120 }),
+      synth(M, t, { variant: "whisperf", pitch: Math.min(99, v.pitch + 10), speed: v.speed, wordgap: 7, amplitude: 110 }),
     ]);
     if (!voiceBuf) return false;
     const t0 = c.currentTime + .05;
     const out = voice(0, 1.1);
     const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 140;
     const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 5200;
-    // temblor en la voz
     const trem = c.createGain(); trem.gain.value = .8;
-    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 5.5; lg.gain.value = .22;
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = v.trem; lg.gain.value = v.tremDepth;
     lfo.connect(lg); lg.connect(trem.gain); lfo.start(t0);
-    // eco que se repite y se apaga
-    const dl = c.createDelay(1); dl.delayTime.value = .32;
-    const fb = c.createGain(); fb.gain.value = .32;
+    const dl = c.createDelay(1); dl.delayTime.value = v.delay;
+    const fb = c.createGain(); fb.gain.value = v.fb;
     const echo = c.createGain(); echo.gain.value = .4;
     hp.connect(lp); lp.connect(trem); trem.connect(out);
     trem.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(echo); echo.connect(out);
-    const rate = kid ? 1.06 : .92; // los niños suenan más agudos
-    const src = c.createBufferSource(); src.buffer = voiceBuf; src.playbackRate.value = rate;
+    const src = c.createBufferSource(); src.buffer = voiceBuf; src.playbackRate.value = v.rate;
     src.connect(hp); src.start(t0);
-    let dur = voiceBuf.duration / rate;
+    const dur = voiceBuf.duration / v.rate;
     if (whisperBuf) {
       [-.7, .7].forEach((pan, i) => {
-        const w = c.createBufferSource(); w.buffer = whisperBuf; w.playbackRate.value = rate;
+        const w = c.createBufferSource(); w.buffer = whisperBuf; w.playbackRate.value = v.rate;
         const wh = c.createBiquadFilter(); wh.type = "highpass"; wh.frequency.value = 900;
-        const g = c.createGain(); g.gain.value = .22;
+        const g = c.createGain(); g.gain.value = .2;
         w.connect(wh); wh.connect(g); g.connect(voice(pan, 1));
         w.start(t0 + .06 + i * .12);
       });
@@ -1409,29 +1455,27 @@
     return true;
   }
 
-  async function demonSpeak(text) {
+  // demonio: grave, distorsionado, con una segunda voz y un gruñido, pero entendible
+  async function demonSpeak(text, sp) {
     const M = await loadMeSpeak();
     const c = live();
     if (!M || !c) return false;
-    const t = text.toLowerCase();
+    const v = voiceOf(sp), t = text.toLowerCase();
     const [voiceBuf, whisperBuf] = await Promise.all([
-      synth(M, t, { variant: "m3", pitch: 0, speed: 108, wordgap: 6, amplitude: 125 }),
-      synth(M, t, { variant: "whisperf", pitch: 0, speed: 108, wordgap: 6, amplitude: 110 }),
+      synth(M, t, { variant: v.variant, pitch: v.pitch, speed: v.speed, wordgap: 6, amplitude: 125 }),
+      v.whisper ? synth(M, t, { variant: "whisperf", pitch: 0, speed: v.speed, wordgap: 6, amplitude: 110 }) : null,
     ]);
     if (!voiceBuf) return false;
     const t0 = c.currentTime + .05;
     const out = voice(0, .55);
     const bus = c.createGain(); bus.gain.value = 1.2;
-    // cuerpo grave y ronco
-    const low = c.createBiquadFilter(); low.type = "lowshelf"; low.frequency.value = 180; low.gain.value = 10;
-    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 4200;
-    // realce de la zona donde se entienden las consonantes
+    const low = c.createBiquadFilter(); low.type = "lowshelf"; low.frequency.value = 180; low.gain.value = v.bass;
     const clear = c.createBiquadFilter(); clear.type = "peaking"; clear.frequency.value = 2500; clear.Q.value = 1; clear.gain.value = 5;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 4200;
     bus.connect(low); low.connect(clear); clear.connect(lp); lp.connect(out);
-    // gruñido: modulación en anillo con una onda lenta, mezclada con la voz limpia
     const ring = c.createGain(); ring.gain.value = 0;
-    const rOsc = c.createOscillator(); rOsc.frequency.value = 38; rOsc.connect(ring.gain);
-    const ringMix = c.createGain(); ringMix.gain.value = .26; ring.connect(ringMix); ringMix.connect(bus);
+    const rOsc = c.createOscillator(); rOsc.frequency.value = v.ring; rOsc.connect(ring.gain);
+    const ringMix = c.createGain(); ringMix.gain.value = v.ringMix; ring.connect(ringMix); ringMix.connect(bus);
     rOsc.start(t0);
     const layer = (buf, rate, gain, drive) => {
       const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
@@ -1440,11 +1484,10 @@
       src.start(t0);
       return buf.duration / rate;
     };
-    const d1 = layer(voiceBuf, .7, 1, 3);      // voz principal: muy grave pero entendible
-    const d2 = layer(voiceBuf, .6, .34, 10);   // segunda voz aún más grave, de fondo
+    const d1 = layer(voiceBuf, v.rate, 1, v.drive);
+    const d2 = layer(voiceBuf, v.rate - v.rate2, v.gain2, v.drive * 2.5);
     let dur = Math.max(d1, d2);
     if (whisperBuf) {
-      // susurro que acompaña, abierto hacia los lados y con mucho eco
       [-.8, .8].forEach((pan, i) => {
         const w = c.createBufferSource(); w.buffer = whisperBuf; w.playbackRate.value = .8 + i * .04;
         const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 900;
@@ -1455,7 +1498,6 @@
       });
     }
     rOsc.stop(t0 + dur + .5);
-    // un retumbo y un gruñido debajo de todo
     SFX.retumbo(); SFX.grunido();
     return true;
   }
@@ -1464,7 +1506,7 @@
   function speak(text, who) {
     if (!soundOn || !text) return;
     const sp = typeof who === "string" ? (byName(who) || currentSpirit()) : (who || currentSpirit());
-    const run = sp && !sp.demon ? soulSpeak(text, sp) : demonSpeak(text);
+    const run = sp.demon ? demonSpeak(text, sp) : soulSpeak(text, sp);
     run.then(ok => { if (!ok) speakBrowser(text); }).catch(() => speakBrowser(text));
   }
 
@@ -1678,7 +1720,60 @@
   const rbear = document.getElementById("rbear");
   const rtype = document.getElementById("rtype"), ryear = document.getElementById("ryear");
 
-  // 30 almas en pena adultas y 8 niños, con nombres antiguos y año de muerte, y 12 demonios
+  // 49 demonios: nombre, género, título y sus propias frases
+  const DEMONS = [
+    ["Azazel", "m", "el caído del desierto", ["Caí del cielo y aterricé en tu casa", "El desierto me enseñó a esperar", "Tu alma es arena en mis manos", "Nadie me expulsa dos veces"]],
+    ["Belial", "m", "el que no tiene amo", ["Yo no obedezco a nadie", "Tus oraciones me dan risa", "Pronto serás mi sirviente", "Rompí todas las cadenas"]],
+    ["Asmodeo", "m", "el señor de la ira", ["Tu rabia me alimenta", "Voy a pelear dentro de ti", "Esta casa se llenará de gritos", "Mira cómo tiemblan tus manos"]],
+    ["Astaroth", "m", "el gran duque del infierno", ["Conozco el día de tu muerte", "El infierno tiene tu nombre escrito", "Arrodíllate ante el duque", "Tu tiempo se está acabando"]],
+    ["Baal", "m", "el rey de oriente", ["Soy rey y esta casa es mi trono", "Traigan ofrendas o traeré castigo", "Mis ejércitos esperan afuera", "Nadie se sienta en mi trono"]],
+    ["Belcebú", "m", "el señor de las moscas", ["¿Escuchas el zumbido?", "Mis moscas ya están en tu cama", "Todo lo que tocas se pudre", "Soy el señor de las moscas"]],
+    ["Leviatán", "m", "la serpiente del abismo", ["Subí desde el fondo del abismo", "Me enrosco alrededor de tu cuello", "El agua negra te espera", "Nadie sale del abismo"]],
+    ["Mammón", "m", "el de la codicia", ["Todo tiene un precio, incluso tu alma", "Ya pagaste con tus sueños", "Vendiste lo que más querías", "Cobro mis deudas de noche"]],
+    ["Moloch", "m", "el devorador", ["Tengo hambre", "El fuego nunca se apaga", "Traigan lo que más aman", "Los devoraré uno por uno"]],
+    ["Abadón", "m", "el destructor", ["Vengo a destruirlo todo", "Abrí el pozo sin fondo", "Nada quedará en pie", "Soy el fin de tu historia"]],
+    ["Lilith", "f", "la madre de la noche", ["La noche es mía, y tú también", "Vengo cuando duermes", "Mis hijos rodean tu cama", "Nunca más dormirás tranquilo"]],
+    ["Paimon", "m", "el rey que canta", ["¿Escuchas mi canción?", "Canto para los que van a morir", "Tu nombre suena bien en mi canción", "Ven, canta conmigo"]],
+    ["Lucífugo", "m", "el que huye de la luz", ["Apaga la luz y te mostraré mi cara", "La oscuridad es mi casa", "Cuando la vela muera, entraré", "No mires a la sombra"]],
+    ["Mefistófeles", "m", "el que compra almas", ["Firma aquí con tu sangre", "Te daré lo que quieras a cambio de todo", "Tu alma tiene buen precio", "El trato ya está cerrado"]],
+    ["Andras", "m", "el sembrador de discordia", ["Uno de ustedes traicionará a otro", "Sembré el odio entre ustedes", "Pronto se mirarán como enemigos", "Pregúntale qué piensa de ti"]],
+    ["Bael", "m", "el de las tres cabezas", ["Tres voces te hablan al mismo tiempo", "Tengo tres bocas y todas tienen hambre", "Te miro con seis ojos", "No puedes esconderte de mí"]],
+    ["Agares", "m", "el que hace temblar la tierra", ["Sentirás temblar el suelo", "La tierra se abrirá bajo tus pies", "Te hundiré con esta casa", "Escucha crujir los cimientos"]],
+    ["Vassago", "m", "el que ve lo oculto", ["Sé lo que escondes", "Vi lo que hiciste cuando nadie miraba", "Tus secretos me pertenecen", "No hay nada oculto para mí"]],
+    ["Samigina", "m", "el que cuenta a los ahogados", ["Llevo la cuenta de los ahogados", "Tú serás el siguiente número", "Siento agua en tus pulmones", "Respira mientras puedas"]],
+    ["Marbas", "m", "el que trae la peste", ["Traigo la enfermedad en mi aliento", "Tu cuerpo ya empezó a pudrirse", "Tose, tose para mí", "La fiebre llegará esta noche"]],
+    ["Valefor", "m", "el ladrón", ["Te robaré lo que más quieres", "Ya me llevé algo tuyo", "Busca bien, algo te falta", "Robo almas mientras duermen"]],
+    ["Amon", "m", "el lobo de fuego", ["Huelo tu miedo desde lejos", "Mi boca escupe fuego", "Aúllo por ti esta noche", "Corre, el lobo ya te vio"]],
+    ["Barbatos", "m", "el que habla con las bestias", ["Los perros ya saben que estoy aquí", "Los animales huyen de esta casa", "Escucha a los perros aullar", "Las bestias me obedecen"]],
+    ["Buer", "m", "el de las cinco patas", ["Camino dando vueltas a tu cama", "Escucha mis patas en el techo", "Cinco pasos y estoy contigo", "Me muevo como una rueda de fuego"]],
+    ["Gusión", "m", "el que conoce tu pasado", ["Recuerdo todo lo que hiciste", "Tu pasado vino a buscarte", "Nadie olvida sus culpas", "Hablemos de lo que nunca contaste"]],
+    ["Sitri", "m", "el de rostro de leopardo", ["Mis ojos brillan en la oscuridad", "Te acecho como a una presa", "Estoy agazapado detrás de ti", "Salto cuando cierras los ojos"]],
+    ["Beleth", "m", "el rey furioso", ["Mi furia no tiene fin", "Mis trompetas anuncian tu muerte", "Temblarás ante el rey", "Nadie calma mi furia"]],
+    ["Leraje", "m", "el arquero de las heridas", ["Mis flechas nunca fallan", "Te heriré donde más duele", "Las heridas que hago no cierran", "Ya apunté a tu corazón"]],
+    ["Eligos", "m", "el jinete de la guerra", ["Cabalgo hacia tu casa", "Traigo la guerra conmigo", "Mi lanza busca tu pecho", "Escucha los cascos de mi caballo"]],
+    ["Zepar", "m", "el que confunde", ["Ya no sabes qué es real", "Estás soñando o estás despierto", "Nada de esto está pasando, ¿o sí?", "Tu mente es mía"]],
+    ["Botis", "m", "la víbora", ["Siento tu pulso", "Mi veneno ya está en tu sangre", "Me arrastro bajo tu cama", "Una mordida y todo termina"]],
+    ["Bathin", "m", "el que conoce los caminos de los muertos", ["Conozco el camino a la tumba", "Te llevaré por el camino de los muertos", "Tus pasos ya van hacia allá", "Te espera una fosa abierta"]],
+    ["Sallos", "m", "el que sonríe", ["Estoy sonriendo detrás de ti", "Mi sonrisa es lo último que verás", "Sonríe, ya te tengo", "Nadie ve mis dientes y vive"]],
+    ["Purson", "m", "el león de la serpiente", ["Rujo y la casa tiembla", "Mi serpiente busca tu garganta", "Conozco lo que vendrá mañana", "Mañana será peor"]],
+    ["Marax", "m", "el toro de rostro humano", ["Tengo tu cara", "Embisto contra todo lo que amas", "Mis cuernos rasgan la noche", "Mírame, soy casi humano"]],
+    ["Naberius", "m", "el cuervo de tres cabezas", ["Los cuervos vuelan sobre tu techo", "Grazno tu nombre", "Tres cuervos, tres muertes", "Picotearé tus ojos"]],
+    ["Glasya-Labolas", "m", "el perro alado", ["Ladro en la oscuridad", "Mis alas cubren tu ventana", "Te seguiré a donde vayas", "Muerdo sin avisar"]],
+    ["Bune", "m", "el dragón de tres cabezas", ["Hablo desde las tumbas", "Mis tres bocas susurran tu nombre", "Los muertos obedecen mi voz", "Esta noche los muertos se levantan"]],
+    ["Ronove", "m", "el que roba voces", ["Te robaré la voz", "Grita, nadie te escuchará", "Ya tengo la voz de tu madre", "Hablo con la voz de los que amas"]],
+    ["Berith", "m", "el de la corona roja", ["Mi corona es de sangre", "Todo lo que toco se vuelve sangre", "Miento y todos me creen", "Soy tu rey, inclínate"]],
+    ["Focalor", "m", "el que ahoga", ["El agua sube", "Te hundiré en lo profundo", "Nadie sale a respirar", "Siente el agua en tu garganta"]],
+    ["Vepar", "m", "el del naufragio", ["Hundo barcos y almas", "La marea te arrastrará", "Tu cuerpo flotará al amanecer", "El mar pide otro"]],
+    ["Sabnock", "m", "el que pudre las heridas", ["Tus heridas no sanarán", "Pudro todo lo que tocas", "Siento el olor de tu carne", "Construyo torres con huesos"]],
+    ["Shax", "m", "el que roba la vista", ["Te dejaré ciego en la oscuridad", "Ya no podrás verme llegar", "Tus ojos serán míos", "Cierra los ojos, es lo mismo"]],
+    ["Naamah", "f", "la que canta en la oscuridad", ["Escucha mi canción de cuna", "Canto para que no despiertes", "Duerme, duerme para siempre", "Mi voz te llevará lejos"]],
+    ["Agrat", "f", "la que baila con los muertos", ["Bailo sobre tu tumba", "Ven, baila conmigo", "Los muertos bailan esta noche", "Da una vuelta y no volverás"]],
+    ["Lamashtu", "f", "la que ronda las cunas", ["Ronda la cuna, ronda la cama", "Escucho a los niños respirar", "Nadie protege esta casa", "Vengo por los más pequeños"]],
+    ["Abyzou", "f", "la que nunca descansa", ["Nunca duermo, nunca descanso", "Te buscaré en cada casa", "No hay amuleto que te proteja", "Siempre vuelvo"]],
+    ["Pazuzu", "m", "el rey de los vientos malditos", ["¿Sientes el viento?", "Traigo el viento del infierno", "Las ventanas se abrirán solas", "El viento se lleva las almas"]],
+  ];
+
+  // 30 almas en pena adultas y 8 niños, con nombres antiguos y año de muerte, y los 49 demonios
   const SPIRITS = [
     ["Eleonora", "f", 1893], ["Ermelinda", "f", 1871], ["Clotilde", "f", 1902], ["Rosalía", "f", 1888], ["Amelia", "f", 1919],
     ["Leonor", "f", 1864], ["Ignacia", "f", 1897], ["Brígida", "f", 1856], ["Aurora", "f", 1924], ["Casilda", "f", 1879],
@@ -1692,8 +1787,7 @@
      ["Rosita", "f", 1910, 6], ["Marianita", "f", 1933, 7], ["Carmencita", "f", 1888, 9], ["Anita", "f", 1915, 5]]
       .map(([name, g, year, age]) => ({ name, g, year, age, demon: false, child: true }))
   ).concat(
-    ["Azazel", "Belial", "Asmodeo", "Astaroth", "Baal", "Belcebú", "Leviatán", "Mammón", "Moloch", "Abadón", "Lilith", "Paimon"]
-      .map(name => ({ name, g: name === "Lilith" ? "f" : "m", year: null, demon: true, child: false }))
+    DEMONS.map(([name, g, title, lines]) => ({ name, g, title, lines, year: null, demon: true, child: false }))
   );
   const byName = n => SPIRITS.find(x => x.name === n) || null;
   // el espíritu de la sesión: responde en la tabla aunque el radar todavía no lo haya detectado
@@ -1722,7 +1816,8 @@
     "Te veo, te veo", "Mi mamá dijo que no hablara con ustedes", "No apagues la luz, por favor",
     "¿Ya es de noche otra vez?", "Quiero irme a mi casa",
   ];
-  const linesOf = sp => sp && sp.demon ? DEMON_LINES : sp && sp.child ? CHILD_LINES : SOUL_LINES;
+  // un demonio usa casi siempre sus propias frases y a veces las comunes
+  const linesOf = sp => sp && sp.demon ? (Math.random() < .7 ? sp.lines : DEMON_LINES) : sp && sp.child ? CHILD_LINES : SOUL_LINES;
   // cada lista se baraja y no repite frase hasta agotarla
   const lineBags = new Map();
   function drawLine(list) {
@@ -1889,9 +1984,9 @@
     const entry = document.createElement("p");
     const aa = document.createElement("span"); aa.textContent = name.toUpperCase();
     if (info.demon) {
-      entry.append("El radar detecta una entidad demoníaca: ", aa, ".");
+      entry.append("El radar detecta una entidad demoníaca: ", aa, ", " + info.title + ".");
       SFX.grunido();
-      speak("Soy " + name + ". " + pick(["Tu alma es mía", "Me llamaron", "Ya estoy aquí", "Nadie saldrá de aquí"]), info);
+      speak("Soy " + name + ", " + info.title + ". " + drawLine(info.lines), info);
     } else {
       if (info.child) {
         entry.append("El radar detecta " + (info.g === "f" ? "una niña" : "un niño") + " de " + info.age + " años. Dice llamarse ", aa, ", murió en " + info.year + ".");
@@ -1988,7 +2083,7 @@
         ping(spirit.r < .2 ? 1320 : 880);
         const m = spirit.r * RANGE_M;
         rname.textContent = spirit.name;
-        rtype.textContent = spirit.info.demon ? "Demonio" : spirit.info.child ? (spirit.info.g === "f" ? "Niña" : "Niño") + ", " + spirit.info.age + " años" : "Alma en pena";
+        rtype.textContent = spirit.info.demon ? "Demonio, " + spirit.info.title : spirit.info.child ? (spirit.info.g === "f" ? "Niña" : "Niño") + ", " + spirit.info.age + " años" : "Alma en pena";
         ryear.textContent = spirit.info.year ? "† " + spirit.info.year : "—";
         rdist.textContent = m.toFixed(1).replace(".", ",") + " m";
         rbear.textContent = String(Math.round(spirit.a * 180 / Math.PI)).padStart(3, "0") + "°";
