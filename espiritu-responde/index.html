@@ -307,18 +307,19 @@
   .specter .status { color: var(--bone-dim); font-family: var(--type); }
   .specter .status.alert { color: var(--ember); }
   .spec-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-  .spec-actions label, .spec-tools button {
+  .spec-actions button, .spec-tools button {
     display: flex; align-items: center; justify-content: center; text-align: center;
     font-family: var(--type); font-weight: 700; font-size: .95rem; letter-spacing: .08em; text-transform: uppercase;
     color: var(--phos); border: 1px solid var(--phos); padding: 12px 16px; border-radius: 2px; cursor: pointer;
     background: transparent; box-shadow: 0 0 14px rgba(127,194,140,.15);
   }
-  .spec-actions label:hover, .spec-tools button:hover { background: rgba(127,194,140,.12); }
-  .spec-actions label:focus-within { outline: 2px solid var(--candle); outline-offset: 3px; }
+  .spec-actions button:hover, .spec-tools button:hover { background: rgba(127,194,140,.12); }
   .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
   .spec-frame { position: relative; border: 1px solid #1b2a1f; background: #020403; box-shadow: 0 0 0 4px #0b0709, 0 20px 50px rgba(0,0,0,.7); }
   .spec-frame[hidden], .spec-tools[hidden] { display: none; }
-  .spec-frame canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+  .spec-frame canvas { position: relative; z-index: 1; display: block; width: 100%; height: auto; max-width: 100%; }
+  /* el video queda en pantalla (detrás del lienzo) para que el teléfono no lo pause por estar oculto */
+  .spec-frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .02; z-index: 0; pointer-events: none; }
   .spec-tools { display: flex; flex-wrap: wrap; gap: 10px; }
   .spec-tools button { flex: 1 1 140px; font-size: .8rem; padding: 10px 12px; border-color: var(--phos-dim); }
 
@@ -457,15 +458,19 @@
     <h2>Cámara espectral</h2>
     <p class="status" id="sstatus">Toma una foto o graba unos segundos de la habitación. La cámara revela lo que el ojo no ve.</p>
     <div class="spec-actions">
-      <label for="photoIn">Foto espectral<input type="file" id="photoIn" class="vh" accept="image/*" capture="environment"></label>
-      <label for="videoIn">Video espectral<input type="file" id="videoIn" class="vh" accept="video/*" capture="environment"></label>
+      <button type="button" id="photoBtn">Foto espectral</button>
+      <button type="button" id="videoBtn">Video espectral</button>
+      <input type="file" id="photoIn" class="vh" accept="image/*">
+      <input type="file" id="videoIn" class="vh" accept="video/*">
     </div>
-    <div class="spec-frame" id="specframe" hidden><canvas id="speccanvas"></canvas></div>
+    <div class="spec-frame" id="specframe" hidden>
+      <video id="specvideo" playsinline muted preload="auto"></video>
+      <canvas id="speccanvas"></canvas>
+    </div>
     <div class="spec-tools" id="spectools" hidden>
       <button type="button" id="specagain">Ver de nuevo</button>
       <button type="button" id="specclose">Cerrar cámara</button>
     </div>
-    <video id="specvideo" class="vh" playsinline muted></video>
   </section>
 
   <form class="ritual" id="ritual" autocomplete="off">
@@ -1759,10 +1764,15 @@
   // ---- foto ----
   async function spectralPhoto(file) {
     stopSpec();
+    sStatus("Cargando la foto…");
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.src = url;
-    try { await img.decode(); } catch (e) { sStatus("No se pudo abrir la foto. Prueba con otra.", true); return; }
+    const ok = await new Promise(res => { img.onload = () => res(true); img.onerror = () => res(false); img.src = url; });
+    if (!ok || !img.naturalWidth) {
+      URL.revokeObjectURL(url);
+      sStatus("Este teléfono no pudo abrir esa foto (" + (file.type || "formato desconocido") + "). Prueba sacando la foto de nuevo o eligiendo otra.", true);
+      return;
+    }
     fitCanvas(img.naturalWidth, img.naturalHeight);
     spec = { kind: "photo", url, src: img, t0: performance.now(), msg: spectralMessage() };
     sx.drawImage(img, 0, 0, sc.width, sc.height);
@@ -1812,12 +1822,26 @@
     const url = URL.createObjectURL(file);
     spec = { kind: "video", url, src: svid, msg: spectralMessage() };
     const cur = spec;
-    svid.src = url; svid.muted = true; svid.playsInline = true;
-    await new Promise(res => { svid.onloadeddata = res; svid.onerror = res; });
-    if (spec !== cur) return;
-    if (!svid.videoWidth) { sStatus("No se pudo abrir el video. Prueba grabando otro.", true); return; }
-    fitCanvas(svid.videoWidth, svid.videoHeight);
+    sStatus("Cargando el video…");
     specframe.hidden = false; spectools.hidden = true;
+    svid.muted = true; svid.playsInline = true; svid.setAttribute("playsinline", ""); svid.setAttribute("webkit-playsinline", "");
+    svid.src = url;
+    try { svid.load(); } catch (e) {}
+    // iPhone no carga el video hasta que se intenta reproducir
+    svid.play().catch(() => {});
+    const ready = await new Promise(res => {
+      const done = v => { clearTimeout(to); ["loadeddata", "canplay", "playing", "error"].forEach(ev => svid.removeEventListener(ev, h)); res(v); };
+      const h = e => done(e.type !== "error");
+      ["loadeddata", "canplay", "playing", "error"].forEach(ev => svid.addEventListener(ev, h));
+      const to = setTimeout(() => done(svid.videoWidth > 0), 10000);
+    });
+    if (spec !== cur) return;
+    if (!ready || !svid.videoWidth) {
+      specframe.hidden = true;
+      sStatus("Este teléfono no pudo reproducir ese video (" + (file.type || "formato desconocido") + "). Prueba grabando uno más corto o usa la foto espectral.", true);
+      return;
+    }
+    fitCanvas(svid.videoWidth, svid.videoHeight);
     specframe.scrollIntoView({ behavior: "smooth", block: "center" });
     sStatus("Reproduciendo con filtro infrarrojo…");
     cur.ghost = makeGhost(Math.round(sc.height * rnd(.5, .62)));
@@ -1857,13 +1881,24 @@
     specRAF = requestAnimationFrame(loop);
   }
 
-  document.getElementById("photoIn").addEventListener("change", e => {
+  const photoIn = document.getElementById("photoIn"), videoIn = document.getElementById("videoIn");
+  document.getElementById("photoBtn").addEventListener("click", () => {
+    if (soundOn) { ensureAudio(); unlockSpeech(); }
+    sStatus("Abriendo la cámara… Elige «Tomar foto» o una foto de la galería.");
+    photoIn.click();
+  });
+  document.getElementById("videoBtn").addEventListener("click", () => {
+    if (soundOn) { ensureAudio(); unlockSpeech(); }
+    sStatus("Abriendo la cámara… Elige «Grabar video» o un video de la galería.");
+    videoIn.click();
+  });
+  photoIn.addEventListener("change", e => {
     const f = e.target.files && e.target.files[0]; e.target.value = "";
     if (!f) return;
     if (soundOn) { ensureAudio(); unlockSpeech(); }
     spectralPhoto(f);
   });
-  document.getElementById("videoIn").addEventListener("change", e => {
+  videoIn.addEventListener("change", e => {
     const f = e.target.files && e.target.files[0]; e.target.value = "";
     if (!f) return;
     if (soundOn) { ensureAudio(); unlockSpeech(); }
