@@ -288,6 +288,8 @@
   summary:focus-visible { outline: 2px solid var(--candle); outline-offset: 3px; }
   details ol { margin: 12px 0 4px; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; max-width: 62ch; }
   details code { font-family: var(--type); color: var(--candle); }
+  .sb-check { display: flex; gap: 10px; align-items: flex-start; font-size: .95rem; text-transform: none; letter-spacing: 0; font-family: var(--body); font-weight: 400; color: var(--bone); margin-bottom: 10px; }
+  .sb-check input { margin-top: .3em; accent-color: var(--ember); }
   .sb-title { margin: 14px 0 8px; font-family: var(--type); font-weight: 700; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; color: var(--bone-dim); }
   .soundboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .soundboard button {
@@ -360,6 +362,53 @@
   .veil p.on { opacity: 1; transform: none; }
   body.seance .board, body.seance .answer { z-index: 4; }
 
+  /* ----- apagado falso y llamada fantasma ----- */
+  .blackout { position: fixed; inset: 0; z-index: 20; background: #000; }
+  .call {
+    position: fixed; inset: 0; z-index: 21;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: calc(env(safe-area-inset-top, 0px) + 56px) 16px calc(env(safe-area-inset-bottom, 0px) + 48px);
+    background: radial-gradient(ellipse at 50% 30%, #231a22 0%, #0b080b 60%, #000 100%);
+    color: #f2ecec; text-align: center;
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .call[hidden], .blackout[hidden], .call [hidden] { display: none; }
+  .call-top { display: flex; flex-direction: column; gap: 8px; }
+  .call-label { margin: 0; font-size: .95rem; color: #b9adb3; letter-spacing: .02em; }
+  .call-name { margin: 0; font-size: clamp(2rem, 9vw, 2.8rem); font-weight: 300; }
+  .call-num { margin: 0; font-size: 1rem; color: #b9adb3; font-variant-numeric: tabular-nums; }
+  .call-avatar {
+    width: 132px; height: 132px; border-radius: 50%;
+    background: #2a2228; display: grid; place-items: center; position: relative;
+  }
+  .call-avatar svg { width: 70%; height: 70%; }
+  .call.ringing .call-avatar::after {
+    content: ""; position: absolute; inset: -10px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.25); animation: callpulse 1.3s ease-out infinite;
+  }
+  @keyframes callpulse { from { transform: scale(.9); opacity: 1; } to { transform: scale(1.35); opacity: 0; } }
+  .call.active .call-avatar { box-shadow: 0 0 0 2px rgba(200,57,45,.5), 0 0 40px rgba(200,57,45,.35); }
+  .call-wave { display: flex; gap: 4px; height: 36px; align-items: center; }
+  .call-wave i { width: 5px; border-radius: 3px; background: #c8392d; height: 20%; animation: wave .9s ease-in-out infinite; }
+  .call-wave i:nth-child(2) { animation-delay: .1s; } .call-wave i:nth-child(3) { animation-delay: .25s; }
+  .call-wave i:nth-child(4) { animation-delay: .05s; } .call-wave i:nth-child(5) { animation-delay: .3s; }
+  @keyframes wave { 50% { height: 100%; } }
+  .call-msg {
+    margin: 0; min-height: 3em; max-width: 20ch;
+    font-family: var(--display); font-weight: 700; font-size: clamp(1.3rem, 6vw, 1.8rem); line-height: 1.25;
+    color: #ff5a4a; text-shadow: 0 0 16px rgba(200,57,45,.6);
+  }
+  .call-btns { display: flex; gap: 72px; justify-content: center; }
+  .call-btn { display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: .9rem; color: #e8e0e2; }
+  .call-btn button {
+    width: 72px; height: 72px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    display: grid; place-items: center; text-transform: none; letter-spacing: 0;
+  }
+  .call-btn button svg { width: 34px; height: 34px; }
+  .call-no { background: #e0433a; }
+  .call-yes { background: #2fbf71; animation: nudge 1.3s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform: translateY(-6px); } }
+
   /* ----- sustos ----- */
   .flash {
     position: fixed; inset: 0; z-index: 5; pointer-events: none;
@@ -393,6 +442,26 @@
 </style>
 
 <div class="flash" id="flash"></div>
+<div class="blackout" id="blackout" hidden></div>
+<div class="call" id="call" role="dialog" aria-label="Llamada entrante" hidden>
+  <div class="call-top">
+    <p class="call-label" id="callLabel">Llamada entrante…</p>
+    <p class="call-name" id="callName">Desconocido</p>
+    <p class="call-num" id="callNum">Número privado</p>
+  </div>
+  <div class="call-avatar" aria-hidden="true">
+    <svg viewBox="0 0 64 64"><circle cx="32" cy="24" r="12" fill="#6d5f68"/><path d="M10 58c2-13 11-20 22-20s20 7 22 20z" fill="#6d5f68"/></svg>
+  </div>
+  <div class="call-wave" id="callWave" hidden><i></i><i></i><i></i><i></i><i></i></div>
+  <p class="call-msg" id="callMsg"></p>
+  <div class="call-btns" id="callBtns">
+    <div class="call-btn"><button type="button" id="callNo" class="call-no" aria-label="Rechazar"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" transform="rotate(135 12 12)" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg></button>Rechazar</div>
+    <div class="call-btn"><button type="button" id="callYes" class="call-yes" aria-label="Contestar"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg></button>Contestar</div>
+  </div>
+  <div class="call-btns" id="callEndWrap" hidden>
+    <div class="call-btn"><button type="button" id="callEnd" class="call-no" aria-label="Colgar"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" transform="rotate(135 12 12)" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg></button>Colgar</div>
+  </div>
+</div>
 <div class="eyes" id="eyes" aria-hidden="true"><i></i><i></i></div>
 
 <div class="closing" id="closing"></div>
@@ -515,11 +584,23 @@
       <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
       <li>Respuesta de sí o no: toca una vez la palabra «Sí» o «No» del tablero. Parpadea un instante y la próxima respuesta será esa. Toca de nuevo la misma palabra para cancelar. Esto tiene prioridad sobre todo lo demás.</li>
       <li>Con el sonido encendido, el espíritu dice la respuesta en voz alta con voz de ultratumba.</li>
+      <li>Llamada fantasma: al pulsar «Cerrar sesión» la pantalla se pone negra como si la app se apagara. A los 15–25 segundos entra una llamada de un número privado. Al contestar se oye estática y respiración, y el espíritu dice la respuesta con su voz (la secreta si la escribiste antes de cerrar). Si la rechazan, vuelve a sonar; a la segunda se contesta sola. Para salir de la pantalla negra sin esperar, mantenla apretada 3 segundos.</li>
       <li>Cámara espectral: pulsa «Grabar video» (la cámara se abre dentro de la app con visión nocturna; graba hasta 8 segundos) o toma una foto, apuntando a un rincón oscuro. En el video la luz baja, aparece una figura que se acerca y al final un rostro salta a la pantalla. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
       <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Escribe los nombres de los presentes separados por coma (o solo cuántos son), pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada uno. Con nombres, el espíritu los menciona en sus respuestas y dice junto a quién está. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
+    <p class="sb-title">Llamada fantasma</p>
+    <label class="sb-check"><input type="checkbox" id="callOnClose" checked> Al pulsar «Cerrar sesión», la app se apaga y a los 15–25 segundos llega la llamada</label>
+    <div class="soundboard">
+      <button type="button" id="callSoon">Llamada en 10 segundos</button>
+      <button type="button" id="callNow">Llamada ahora</button>
+    </div>
     <p class="sb-title">Sonidos a mano (tócalos sin que te vean)</p>
     <div class="soundboard" id="soundboard">
+      <button type="button" data-sfx="palabras">Susurro con palabras</button>
+      <button type="button" data-sfx="susurrosCruzados">Susurros a ambos lados</button>
+      <button type="button" data-sfx="gritoLejano">Grito lejano de mujer</button>
+      <button type="button" data-sfx="alaridoLejano">Alarido lejano</button>
+      <button type="button" data-sfx="llanto">Llanto a lo lejos</button>
       <button type="button" data-sfx="susurro">Susurro</button>
       <button type="button" data-sfx="puerta">Puerta que cruje</button>
       <button type="button" data-sfx="golpes">Golpes en la pared</button>
@@ -614,7 +695,7 @@
     let line = "";
     WHISPERS.forEach(([t, txt]) => { if (prog >= t) line = txt; });
     if (whisper.textContent !== line) {
-      if (line) SFX.susurro();
+      if (line) (Math.random() < .5 ? SFX.susurro : SFX.palabras)();
       whisper.classList.remove("on");
       setTimeout(() => { whisper.textContent = line; if (line) whisper.classList.add("on"); }, line ? 250 : 0);
     }
@@ -1082,7 +1163,82 @@
         o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + .17);
       }
     },
+    // grito de mujer a lo lejos, como desde otra habitación
+    gritoLejano() {
+      const c = live(); if (!c) return;
+      const t = c.currentTime, dur = rnd(1.6, 2.6);
+      const out = voice(rnd(-1, 1), 1.4);
+      const o = c.createOscillator(); o.type = "sawtooth";
+      const f0 = rnd(520, 700);
+      o.frequency.setValueAtTime(f0 * .8, t);
+      o.frequency.linearRampToValueAtTime(f0 * 1.25, t + .25);
+      o.frequency.setValueAtTime(f0 * 1.2, t + dur * .6);
+      o.frequency.linearRampToValueAtTime(f0 * .55, t + dur);
+      const vib = c.createOscillator(), vg = c.createGain(); vib.frequency.value = 7; vg.gain.value = 18;
+      vib.connect(vg); vg.connect(o.frequency);
+      const f1 = c.createBiquadFilter(); f1.type = "bandpass"; f1.frequency.value = 900; f1.Q.value = 6;
+      const f2 = c.createBiquadFilter(); f2.type = "bandpass"; f2.frequency.value = 1500; f2.Q.value = 8;
+      const far = c.createBiquadFilter(); far.type = "lowpass"; far.frequency.value = 1300; // atravesando paredes
+      const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.22, t + .15);
+      g.gain.setValueAtTime(.22, t + dur * .7); g.gain.linearRampToValueAtTime(0, t + dur);
+      o.connect(f1); o.connect(f2); f1.connect(far); f2.connect(far); far.connect(g); g.connect(out);
+      o.start(t); vib.start(t); o.stop(t + dur); vib.stop(t + dur);
+    },
+    // grito de hombre, grave y ahogado, muy lejos
+    alaridoLejano() {
+      const c = live(); if (!c) return;
+      const t = c.currentTime, dur = rnd(1.8, 2.8);
+      const out = voice(rnd(-1, 1), 1.5);
+      const o = c.createOscillator(); o.type = "sawtooth";
+      const f0 = rnd(170, 230);
+      o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 1.5, t + .4); o.frequency.linearRampToValueAtTime(f0 * .7, t + dur);
+      const f1 = c.createBiquadFilter(); f1.type = "bandpass"; f1.frequency.value = 650; f1.Q.value = 5;
+      const far = c.createBiquadFilter(); far.type = "lowpass"; far.frequency.value = 900;
+      const d = distortion(5);
+      const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.2, t + .2); g.gain.linearRampToValueAtTime(0, t + dur);
+      o.connect(d); d.connect(f1); f1.connect(far); far.connect(g); g.connect(out);
+      o.start(t); o.stop(t + dur);
+    },
+    // llanto entrecortado a lo lejos
+    llanto() {
+      const c = live(); if (!c) return;
+      const out = voice(rnd(-1, 1), 1.3), base = rnd(380, 480);
+      for (let i = 0; i < 6; i++) {
+        const t = c.currentTime + i * rnd(.32, .48), d = rnd(.22, .4);
+        const o = c.createOscillator(); o.type = "triangle";
+        o.frequency.setValueAtTime(base * rnd(1, 1.1), t); o.frequency.linearRampToValueAtTime(base * .8, t + d);
+        const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1100; f.Q.value = 4;
+        const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16, t + .04); g.gain.linearRampToValueAtTime(0, t + d);
+        o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + d + .05);
+      }
+    },
+    // palabras susurradas de verdad, desde un lado de la habitación
+    palabras(text) { whisperWords(text); },
+    // dos susurros distintos, uno por cada oído
+    susurrosCruzados() { whisperWords(null, -1); setTimeout(() => whisperWords(null, 1), 700); },
   };
+
+  // frases que se susurran solas
+  const WHISPERS_SAID = [
+    "ven", "estoy aquí", "detrás de ti", "no te vayas", "te estoy mirando", "ayúdame", "no mires",
+    "tengo frío", "abre la puerta", "quédate conmigo", "ya viene", "no estás solo", "shhh", "aquí abajo",
+    "no me dejes", "te encontré", "juega conmigo", "uno, dos, tres",
+  ];
+  async function whisperWords(text, side) {
+    const c = live(); if (!c) return;
+    const names = living.filter(b => b.name).map(b => b.name);
+    if (!text) text = names.length && Math.random() < .35 ? pick(names) + (Math.random() < .5 ? "" : ", " + pick(["ven", "mírame", "estoy aquí"])) : pick(WHISPERS_SAID);
+    const M = await loadMeSpeak();
+    if (!M || !live()) { SFX.susurro(); return; } // sin la voz, un susurro sin palabras
+    const buf = await synth(M, text.toLowerCase(), { variant: "whisperf", pitch: rnd(0, 20), speed: 110, amplitude: 140 });
+    if (!buf) { SFX.susurro(); return; }
+    const pan = side != null ? side * rnd(.7, 1) : (Math.random() < .5 ? -1 : 1) * rnd(.6, 1);
+    const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = rnd(.72, .9);
+    const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 700;
+    const g = c.createGain(); g.gain.value = .55;
+    src.connect(hp); hp.connect(g); g.connect(voice(pan, .7));
+    src.start();
+  }
   // voz de ultratumba: la voz en español más grave del teléfono, al mínimo de tono,
   // envuelta en un susurro que late con cada palabra y seguida de un eco susurrado
   let voiceCache = null;
@@ -1235,12 +1391,13 @@
     if (!window.speechSynthesis) return;
     try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
   }
-  const AMBIENT = ["susurro", "puerta", "golpes", "pasos", "cajaDeMusica", "lamento", "campana", "viento", "respiracion", "grunido", "risa", "rasguno"];
+  const AMBIENT = ["susurro", "puerta", "golpes", "pasos", "cajaDeMusica", "lamento", "campana", "viento", "respiracion", "grunido", "risa", "rasguno",
+    "palabras", "palabras", "palabras", "susurrosCruzados", "gritoLejano", "gritoLejano", "alaridoLejano", "llanto"];
   function ambientLoop() {
     clearTimeout(ambientTimer);
     if (!soundOn) return;
     SFX[AMBIENT[Math.floor(Math.random() * AMBIENT.length)]]();
-    ambientTimer = setTimeout(ambientLoop, rnd(8000, 20000));
+    ambientTimer = setTimeout(ambientLoop, rnd(6000, 15000));
   }
 
   soundBtn.addEventListener("click", () => {
@@ -1356,6 +1513,7 @@
       SFX.susurro();
       await sleep(beat);
     }
+    if (Math.random() < .5) SFX.gritoLejano();
     veil.querySelectorAll("p").forEach(p => p.classList.remove("on"));
     board.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
     await sleep(reduced ? 200 : 900);
@@ -2327,7 +2485,162 @@
     });
   });
 
+
+  /* ---------- apagado falso y llamada fantasma ---------- */
+  const callEl = document.getElementById("call"), blackout = document.getElementById("blackout");
+  const callLabel = document.getElementById("callLabel"), callName = document.getElementById("callName"), callNum = document.getElementById("callNum");
+  const callWave = document.getElementById("callWave"), callMsg = document.getElementById("callMsg");
+  const callBtns = document.getElementById("callBtns"), callEndWrap = document.getElementById("callEndWrap");
+  const callOnClose = document.getElementById("callOnClose");
+  let call = null, pendingCall = null, wakeLock = null, callRejects = 0;
+
+  async function keepAwake() { try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
+  function releaseAwake() { try { if (wakeLock) wakeLock.release(); } catch (e) {} wakeLock = null; }
+
+  // timbre que se desafina un poco más con cada vuelta
+  function ringtone(cycle) {
+    const c = live(); if (!c) return;
+    const out = voice(0, .25), t = c.currentTime, drop = Math.max(.7, 1 - cycle * .035);
+    [0, .5].forEach(off => [440, 480].forEach(f => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.frequency.value = f * drop * (1 + rnd(-.006, .006));
+      g.gain.setValueAtTime(0, t + off); g.gain.linearRampToValueAtTime(.13, t + off + .02);
+      g.gain.setValueAtTime(.13, t + off + .38); g.gain.linearRampToValueAtTime(0, t + off + .44);
+      o.connect(g); g.connect(out); o.start(t + off); o.stop(t + off + .5);
+    }));
+  }
+  // chisporroteo de línea telefónica mientras dura la llamada
+  function lineNoise() {
+    const c = live(); if (!c) return () => {};
+    const out = voice(0, .1), t = c.currentTime;
+    const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1800; bp.Q.value = .7;
+    const g = c.createGain(); g.gain.value = 0;
+    const n = c.createBufferSource(); n.buffer = noiseBuf; n.loop = true;
+    n.connect(bp); bp.connect(g); g.connect(out); n.start(t);
+    const iv = setInterval(() => g.gain.setTargetAtTime(Math.random() < .15 ? rnd(.08, .16) : rnd(.01, .035), c.currentTime, .02), 70);
+    return () => { clearInterval(iv); g.gain.setTargetAtTime(0, c.currentTime, .1); n.stop(c.currentTime + .5); };
+  }
+
+  function fakeShutdown(msg, ghost) {
+    blackout.hidden = false;
+    stopDrone(); clearTimeout(ambientTimer);
+    keepAwake();
+    scheduleCall(rnd(15000, 25000), msg, ghost);
+  }
+  function scheduleCall(ms, msg, ghost) {
+    clearTimeout(pendingCall);
+    pendingCall = setTimeout(() => incomingCall(msg, ghost), ms);
+  }
+  function stopRinging() {
+    if (!call) return;
+    clearTimeout(call.ringTimer); clearTimeout(call.auto);
+    try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) {}
+  }
+  function incomingCall(msg, ghost) {
+    if (call) return;
+    call = { msg: msg || spectralMessage(), ghost: ghost || (spirit && spirit.name) || "", cycles: 0, answered: false };
+    blackout.hidden = true;
+    callEl.hidden = false; callEl.className = "call ringing";
+    callLabel.textContent = "Llamada entrante…"; callName.textContent = "Desconocido"; callNum.textContent = "Número privado";
+    callWave.hidden = true; callMsg.textContent = "";
+    callBtns.hidden = false; callEndWrap.hidden = true;
+    const ring = () => {
+      if (!call || call.answered) return;
+      ringtone(call.cycles++);
+      try { if (navigator.vibrate) navigator.vibrate([500, 250, 500]); } catch (e) {}
+      call.ringTimer = setTimeout(ring, 2800);
+    };
+    ring();
+    call.auto = setTimeout(() => answerCall(true), 24000); // si nadie contesta, se contesta sola
+  }
+  function rejectCall() {
+    if (!call || call.answered) return;
+    stopRinging();
+    const { msg, ghost } = call;
+    call = null;
+    callEl.hidden = true; blackout.hidden = false;
+    callRejects++;
+    if (callRejects >= 2) {
+      // a la segunda vez no deja rechazar: vuelve y se contesta sola
+      setTimeout(() => { incomingCall(msg, ghost); answerCall(true); }, 2500);
+    } else {
+      scheduleCall(3500, msg, ghost);
+    }
+  }
+  async function answerCall(auto) {
+    if (!call || call.answered) return;
+    const cur = call;
+    cur.answered = true;
+    stopRinging();
+    armAudio(); ensureAudio();
+    callEl.className = "call active";
+    callLabel.textContent = auto ? "La llamada se contestó sola" : "En llamada";
+    callBtns.hidden = true; callEndWrap.hidden = false; callWave.hidden = false;
+    const t0 = Date.now();
+    cur.timer = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      callNum.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+    }, 250);
+    callNum.textContent = "00:00";
+    cur.stopNoise = lineNoise();
+    SFX.estatica();
+    await sleep(1600); if (call !== cur) return;
+    SFX.respiracion(); setTimeout(() => SFX.gritoLejano(), 900);
+    await sleep(2600); if (call !== cur) return;
+    if (cur.ghost) callName.textContent = cur.ghost; // el número desconocido revela su nombre
+    speak(cur.msg);
+    cur.spoke = true;
+    // el mensaje se escribe en pantalla mientras habla
+    for (let i = 1; i <= cur.msg.length; i++) {
+      if (call !== cur) return;
+      callMsg.textContent = cur.msg.slice(0, i).toUpperCase();
+      await sleep(110);
+    }
+    await sleep(2500 + cur.msg.length * 60); if (call !== cur) return;
+    SFX.risa();
+    await sleep(1400); if (call !== cur) return;
+    endCall(true);
+  }
+  function endCall(finished) {
+    const cur = call; if (!cur) return;
+    // si cuelgan antes de oír el mensaje, vuelve a llamar
+    if (!finished && !cur.spoke) {
+      clearInterval(cur.timer); cur.stopNoise && cur.stopNoise();
+      call = null; callEl.hidden = true; blackout.hidden = false;
+      callRejects = Math.max(callRejects, 1);
+      setTimeout(() => { incomingCall(cur.msg, cur.ghost); answerCall(true); }, 3000);
+      return;
+    }
+    clearInterval(cur.timer); cur.stopNoise && cur.stopNoise();
+    callLabel.textContent = "Llamada finalizada";
+    callWave.hidden = true; callEndWrap.hidden = true;
+    setTimeout(() => {
+      if (call !== cur) return;
+      call = null; callRejects = 0;
+      callEl.hidden = true; blackout.hidden = true;
+      releaseAwake();
+      if (soundOn && armed) { startDrone(); clearTimeout(ambientTimer); ambientTimer = setTimeout(ambientLoop, 8000); }
+    }, 1800);
+  }
+  document.getElementById("callYes").addEventListener("click", () => answerCall(false));
+  document.getElementById("callNo").addEventListener("click", rejectCall);
+  document.getElementById("callEnd").addEventListener("click", () => endCall(false));
+  document.getElementById("callSoon").addEventListener("click", () => { armAudio(); scheduleCall(10000); });
+  document.getElementById("callNow").addEventListener("click", () => { armAudio(); scheduleCall(300); });
+  // salida del médium: mantener apretada la pantalla negra 3 segundos
+  let blackPress = null;
+  blackout.addEventListener("pointerdown", () => {
+    clearTimeout(blackPress);
+    blackPress = setTimeout(() => {
+      clearTimeout(pendingCall); blackout.hidden = true; releaseAwake(); callRejects = 0;
+      if (soundOn && armed) startDrone();
+    }, 3000);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => blackout.addEventListener(ev, () => clearTimeout(blackPress)));
+
   document.getElementById("reset").addEventListener("click", () => {
+    // lo que dirá la llamada se decide antes de borrar todo
+    const callText = spectralMessage(), ghost = spirit && spirit.name;
     stopRadar();
     leaveSeance();
     forced = null;
@@ -2337,7 +2650,8 @@
     answerEl.classList.add("idle");
     answerEl.textContent = "La tabla espera tu pregunta.";
     moveTo(REST);
-    petition.focus();
+    if (callOnClose.checked) fakeShutdown(callText, ghost);
+    else petition.focus();
   });
 })();
 </script>
