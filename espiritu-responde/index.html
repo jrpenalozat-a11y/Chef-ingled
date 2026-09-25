@@ -321,6 +321,9 @@
   .spec-frame[hidden], .spec-tools[hidden] { display: none; }
   .spec-frame canvas { position: relative; z-index: 1; display: block; width: 100%; height: auto; max-width: 100%; }
   /* el video queda en pantalla (detrás del lienzo) para que el teléfono no lo pause por estar oculto */
+  .spec-frame::after { content: ""; position: absolute; inset: 0; z-index: 2; background: #fff; opacity: 0; pointer-events: none; }
+  .spec-frame.shutter::after { animation: shutter .35s ease-out; }
+  @keyframes shutter { 0% { opacity: .9; } 100% { opacity: 0; } }
   .spec-frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .02; z-index: 0; pointer-events: none; }
   .spec-tools { display: flex; flex-wrap: wrap; gap: 10px; }
   .spec-actions button[hidden] { display: none; }
@@ -531,18 +534,21 @@
     <p class="status" id="sstatus">Graba unos segundos de la habitación o toma una foto. La cámara revela lo que el ojo no ve.</p>
     <div class="spec-actions">
       <button type="button" id="recBtn" class="rec">● Grabar video</button>
-      <button type="button" id="photoBtn">Foto espectral</button>
+      <button type="button" id="shotBtn" class="rec">Tomar foto</button>
+      <button type="button" id="photoBtn">Subir foto</button>
       <button type="button" id="videoBtn">Subir video</button>
       <button type="button" id="camFallback" hidden>Usar la cámara del teléfono</button>
       <input type="file" id="photoIn" class="vh" accept="image/*">
       <input type="file" id="videoIn" class="vh" accept="video/*">
       <input type="file" id="videoCam" class="vh" accept="video/*" capture="environment">
+      <input type="file" id="photoCam" class="vh" accept="image/*" capture="environment">
     </div>
     <div class="spec-frame" id="specframe" hidden>
       <video id="specvideo" playsinline muted preload="auto"></video>
       <canvas id="speccanvas"></canvas>
     </div>
     <div class="spec-tools" id="livetools" hidden>
+      <button type="button" id="snap" class="rec">Tomar foto</button>
       <button type="button" id="recgo" class="rec">● Grabar</button>
       <button type="button" id="reccancel">Cancelar</button>
     </div>
@@ -585,7 +591,7 @@
       <li>Respuesta de sí o no: toca una vez la palabra «Sí» o «No» del tablero. Parpadea un instante y la próxima respuesta será esa. Toca de nuevo la misma palabra para cancelar. Esto tiene prioridad sobre todo lo demás.</li>
       <li>Con el sonido encendido, el espíritu dice la respuesta en voz alta con voz de ultratumba.</li>
       <li>Llamada fantasma: al pulsar «Cerrar sesión» la pantalla se pone negra como si la app se apagara. A los 15–25 segundos entra una llamada de un número privado. Al contestar se oye estática y respiración, y el espíritu dice la respuesta con su voz (la secreta si la escribiste antes de cerrar). Si la rechazan, vuelve a sonar; a la segunda se contesta sola. Para salir de la pantalla negra sin esperar, mantenla apretada 3 segundos.</li>
-      <li>Cámara espectral: pulsa «Grabar video» (la cámara se abre dentro de la app con visión nocturna; graba hasta 8 segundos) o toma una foto, apuntando a un rincón oscuro. En el video la luz baja, aparece una figura que se acerca y al final un rostro salta a la pantalla. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
+      <li>Cámara espectral: pulsa «Tomar foto» o «Grabar video» (la cámara se abre dentro de la app con visión nocturna; graba hasta 8 segundos) o toma una foto, apuntando a un rincón oscuro. En el video la luz baja, aparece una figura que se acerca y al final un rostro salta a la pantalla. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
       <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Escribe los nombres de los presentes separados por coma (o solo cuántos son), pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada uno. Con nombres, el espíritu los menciona en sus respuestas y dice junto a quién está. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
     <p class="sb-title">Llamada fantasma</p>
@@ -2350,7 +2356,7 @@
     if (svid.srcObject) svid.srcObject = null;
     cancelAnimationFrame(specRAF);
   }
-  async function openCamera() {
+  async function openCamera(mode) {
     stopCam(); stopSpec();
     camFallback.hidden = true;
     sStatus("Pidiendo permiso para usar la cámara…");
@@ -2362,7 +2368,7 @@
       camFallback.hidden = false;
       return;
     }
-    const c = cam = { stream, rec: null, chunks: [], t0: 0 };
+    const c = cam = { stream, rec: null, chunks: [], t0: 0, mode };
     svid.removeAttribute("src"); svid.srcObject = stream; svid.muted = true;
     await svid.play().catch(() => {});
     for (let i = 0; i < 30 && !svid.videoWidth; i++) await sleep(100);
@@ -2370,8 +2376,11 @@
     fitCanvas(svid.videoWidth || 1280, svid.videoHeight || 720);
     specframe.hidden = false; spectools.hidden = true; livetools.hidden = false;
     recGo.textContent = "● Grabar";
+    recGo.hidden = false; snapBtn.hidden = false;
     specframe.scrollIntoView({ behavior: "smooth", block: "center" });
-    sStatus("Cámara infrarroja en vivo. Apunta a un rincón oscuro y pulsa «Grabar».");
+    sStatus(mode === "photo"
+      ? "Cámara infrarroja en vivo. Apunta a un rincón oscuro y pulsa «Tomar foto»."
+      : "Cámara infrarroja en vivo. Apunta a un rincón oscuro y pulsa «Grabar».");
     const loop = now => {
       if (cam !== c) return;
       const t = c.rec ? (now - c.t0) / 1000 : now / 1000;
@@ -2389,6 +2398,7 @@
     try { rec = mime ? new MediaRecorder(c.stream, { mimeType: mime }) : new MediaRecorder(c.stream); }
     catch (e) { sStatus("Este navegador no permite grabar aquí. Pulsa «Usar la cámara del teléfono».", true); camFallback.hidden = false; return; }
     c.rec = rec; c.chunks = []; c.t0 = performance.now();
+    snapBtn.hidden = true; // mientras graba no se toman fotos
     rec.ondataavailable = e => { if (e.data && e.data.size) c.chunks.push(e.data); };
     rec.start(250);
     recGo.textContent = "■ Detener";
@@ -2409,15 +2419,40 @@
     c.rec.stop();
   }
 
+  // foto: se congela el cuadro de la cámara en vivo (sin filtro) y pasa al análisis espectral
+  async function takePhoto() {
+    const c = cam; if (!c || c.rec || !svid.videoWidth) return;
+    const shot = layer(svid.videoWidth, svid.videoHeight);
+    shot.getContext("2d").drawImage(svid, 0, 0, shot.width, shot.height);
+    specframe.classList.remove("shutter"); void specframe.offsetWidth; specframe.classList.add("shutter");
+    SFX.rasguno(); // clic del obturador
+    const blob = await new Promise(res => shot.toBlob(res, "image/jpeg", .92));
+    stopCam();
+    livetools.hidden = true;
+    if (!blob) { sStatus("No se pudo tomar la foto. Intenta de nuevo.", true); return; }
+    spectralPhoto(blob);
+  }
+
   const photoIn = document.getElementById("photoIn"), videoIn = document.getElementById("videoIn"), videoCam = document.getElementById("videoCam");
+  const photoCam = document.getElementById("photoCam"), snapBtn = document.getElementById("snap");
+  let camFallbackKind = "video";
   const armSound = () => { if (soundOn) { ensureAudio(); unlockSpeech(); } };
   document.getElementById("recBtn").addEventListener("click", () => {
     armSound();
     // sin cámara dentro del navegador: se abre directamente la cámara del teléfono
+    camFallbackKind = "video";
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { videoCam.click(); return; }
-    openCamera();
+    openCamera("video");
   });
-  camFallback.addEventListener("click", () => { armSound(); videoCam.click(); });
+  document.getElementById("shotBtn").addEventListener("click", () => {
+    armSound();
+    camFallbackKind = "photo";
+    // sin cámara dentro del navegador: se abre directamente la cámara del teléfono
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { photoCam.click(); return; }
+    openCamera("photo");
+  });
+  snapBtn.addEventListener("click", () => { armSound(); takePhoto(); });
+  camFallback.addEventListener("click", () => { armSound(); (camFallbackKind === "photo" ? photoCam : videoCam).click(); });
   recGo.addEventListener("click", () => {
     armSound();
     if (!cam) return;
@@ -2427,7 +2462,7 @@
   document.getElementById("reccancel").addEventListener("click", closeSpec);
   document.getElementById("photoBtn").addEventListener("click", () => {
     armSound();
-    sStatus("Abriendo la cámara… Elige «Tomar foto» o una foto de la galería.");
+    sStatus("Elige una foto de la galería.");
     photoIn.click();
   });
   document.getElementById("videoBtn").addEventListener("click", () => {
@@ -2435,11 +2470,11 @@
     sStatus("Elige un video de la galería.");
     videoIn.click();
   });
-  photoIn.addEventListener("change", e => {
+  [photoIn, photoCam].forEach(inp => inp.addEventListener("change", e => {
     const f = e.target.files && e.target.files[0]; e.target.value = "";
     if (!f) return;
     armSound(); spectralPhoto(f);
-  });
+  }));
   [videoIn, videoCam].forEach(inp => inp.addEventListener("change", e => {
     const f = e.target.files && e.target.files[0]; e.target.value = "";
     if (!f) return;
