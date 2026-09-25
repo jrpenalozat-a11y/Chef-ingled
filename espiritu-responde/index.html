@@ -206,6 +206,57 @@
   .log q { color: var(--bone); quotes: "«" "»"; }
   .log span { color: var(--ember); }
 
+  /* ----- radar ----- */
+  .radar {
+    --phos: #7fc28c;
+    --phos-dim: rgba(127,194,140,.35);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: center;
+    border-top: 1px solid #2a1e22;
+    padding-top: 24px;
+  }
+  .scope {
+    position: relative;
+    width: 100%; max-width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, #0c1a10 0%, #060d08 70%, #020403 100%);
+    box-shadow: inset 0 0 0 3px #1b2a1f, inset 0 0 40px rgba(0,0,0,.9), 0 0 0 6px #120d0f, 0 0 40px rgba(127,194,140,.08);
+  }
+  .scope canvas { width: 100%; height: 100%; display: block; border-radius: 50%; }
+  .readout { display: flex; flex-direction: column; gap: 14px; font-family: var(--type); }
+  .readout h2 {
+    margin: 0;
+    font-family: var(--display); font-weight: 700;
+    font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.1;
+    color: var(--bone);
+  }
+  .status { margin: 0; font-size: .85rem; color: var(--phos); letter-spacing: .06em; min-height: 2.6em; }
+  .status.alert { color: var(--ember); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: .85rem; }
+  .stats dt { color: var(--bone-dim); text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; align-self: center; }
+  .stats dd { margin: 0; color: var(--bone); font-variant-numeric: tabular-nums; }
+  .stats dd.spirit { color: var(--ember); }
+  .calib { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--phos-dim); background: rgba(6,13,8,.8); }
+  .calib[hidden] { display: none; }
+  .calib label { color: var(--phos); }
+  .calib-row { display: flex; gap: 8px; }
+  .calib input {
+    width: 5.5em; box-sizing: border-box;
+    font-family: var(--type); font-size: 1.1rem; color: var(--phos);
+    background: #020403; border: 1px solid var(--phos-dim); padding: 8px 10px; border-radius: 2px;
+  }
+  .calib input:focus { outline: none; border-color: var(--phos); box-shadow: 0 0 12px rgba(127,194,140,.3); }
+  .calib button { background: transparent; color: var(--phos); border: 1px solid var(--phos); padding: 8px 14px; flex: 1; }
+  .calib button:hover { background: rgba(127,194,140,.12); }
+  @media (max-width: 600px) {
+    .radar { grid-template-columns: minmax(0, 1fr); }
+    .scope { max-width: 360px; margin-inline: auto; }
+  }
+
   details {
     border: 1px dashed #3a2a2e; padding: 12px 16px; border-radius: 2px;
     background: rgba(7,6,10,.6);
@@ -278,6 +329,28 @@
 
   <div class="answer idle" id="answer" aria-live="polite">La tabla espera tu pregunta.</div>
 
+  <section class="radar" aria-label="Radar de presencias">
+    <div class="scope"><canvas id="scope" aria-hidden="true"></canvas></div>
+    <div class="readout">
+      <h2>Radar de presencias</h2>
+      <p class="status" id="rstatus" aria-live="polite">Escaneando… sin lecturas. Alcance 6 m.</p>
+      <dl class="stats">
+        <dt>Vivos</dt><dd id="rlive">—</dd>
+        <dt>Presencias</dt><dd id="rghosts" class="spirit">—</dd>
+        <dt>Nombre</dt><dd id="rname" class="spirit">—</dd>
+        <dt>Distancia</dt><dd id="rdist">—</dd>
+        <dt>Rumbo</dt><dd id="rbear">—</dd>
+      </dl>
+      <form class="calib" id="calib" hidden>
+        <label for="people">Calibrar: personas en la habitación</label>
+        <div class="calib-row">
+          <input type="number" id="people" min="1" max="12" inputmode="numeric" value="3">
+          <button type="submit">Iniciar escaneo</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
   <form class="ritual" id="ritual" autocomplete="off">
     <div class="field">
       <label for="petition">Petición <b>·</b> escríbela entera</label>
@@ -306,6 +379,7 @@
       <li>Escribe otro punto <code>.</code> para cerrar el secreto y sigue tecleando hasta completar la petición.</li>
       <li>Deja que tu víctima escriba la pregunta. El espíritu deletreará tu respuesta en la tabla.</li>
       <li>Sin respuesta secreta, el espíritu se niega a hablar o responde algo inquietante.</li>
+      <li>Radar: escribe <code>..</code> en el campo de pregunta (o en cualquier parte de la página con el teclado). Aparece la calibración: anota cuántas personas hay en la habitación y pulsa «Iniciar escaneo». Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
   </details>
 </main>
@@ -582,7 +656,214 @@
     busy = false; askBtn.disabled = false; askBtn.textContent = "Invocar";
   });
 
+  /* ---------- radar ---------- */
+  const scope = document.getElementById("scope");
+  const g2 = scope.getContext("2d");
+  const calib = document.getElementById("calib");
+  const peopleIn = document.getElementById("people");
+  const rstatus = document.getElementById("rstatus");
+  const rlive = document.getElementById("rlive");
+  const rghosts = document.getElementById("rghosts");
+  const rname = document.getElementById("rname");
+  const rdist = document.getElementById("rdist");
+  const rbear = document.getElementById("rbear");
+
+  const SPIRITS = ["Eleonora", "Tomasito", "Hermana Clara", "Don Aurelio", "Rosalía", "Matías", "Ignacia", "Amelia", "Fermín", "Leonor"];
+  const RANGE_M = 6, PERIOD = 3.2; // metros de alcance, segundos por vuelta
+  const TAU = Math.PI * 2;
+  let sweep = 0, last = performance.now();
+  let living = [], spirit = null, scanning = false, timers = [];
+
+  function sizeScope() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = scope.clientWidth || 300;
+    scope.width = w * dpr; scope.height = w * dpr;
+    g2.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  sizeScope();
+  window.addEventListener("resize", sizeScope);
+
+  function setStatus(text, alert) {
+    rstatus.textContent = text;
+    rstatus.classList.toggle("alert", !!alert);
+  }
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  function ping(freq) {
+    if (!soundOn || !ctx) return;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(.12, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .5);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + .55);
+  }
+
+  function openCalibration() {
+    calib.hidden = false;
+    peopleIn.focus();
+    peopleIn.select();
+  }
+
+  function stopRadar() {
+    timers.forEach(clearTimeout); timers = [];
+    scanning = false; living = []; spirit = null;
+    calib.hidden = true;
+    [rlive, rghosts, rname, rdist, rbear].forEach(el => el.textContent = "—");
+    setStatus("Escaneando… sin lecturas. Alcance 6 m.");
+  }
+
+  function startRadar(n) {
+    stopRadar();
+    scanning = true;
+    living = Array.from({ length: n }, () => ({ a: rand(0, TAU), r: rand(.12, .55), alpha: 0 }));
+    rlive.textContent = String(n);
+    rghosts.textContent = "0";
+    setStatus("Calibrando… " + n + (n === 1 ? " persona viva." : " personas vivas."));
+    later(() => setStatus("Lectura estable. Esperando anomalías…"), 2500);
+    later(summonSpirit, rand(6000, 9000));
+  }
+
+  function summonSpirit() {
+    const name = pick(SPIRITS);
+    spirit = { name, a: rand(0, TAU), r: rand(.75, .95), alpha: 0, seen: false, visible: true };
+    rghosts.textContent = "1";
+    setStatus("Anomalía detectada en el borde del alcance.", true);
+    later(wander, rand(5000, 8000));
+  }
+
+  function wander() {
+    if (!spirit) return;
+    const roll = Math.random();
+    if (roll < .18) {
+      // se esconde una vuelta o dos
+      spirit.visible = false;
+      setStatus("Señal perdida…", true);
+      later(() => { if (spirit) { spirit.visible = true; setStatus("Ha vuelto.", true); } }, rand(4000, 7000));
+    } else if (roll < .38) {
+      // se acerca al centro: está junto a ti
+      spirit.a = rand(0, TAU); spirit.r = rand(.05, .14);
+      setStatus(spirit.name + " está junto a ti.", true);
+      later(scare, PERIOD * 1000);
+    } else {
+      spirit.a = rand(0, TAU); spirit.r = rand(.25, .95);
+      setStatus(spirit.name + " se mueve por la habitación.", true);
+    }
+    later(wander, rand(5000, 9000));
+  }
+
+  async function introduce(name) {
+    const entry = document.createElement("p");
+    const aa = document.createElement("span"); aa.textContent = name.toUpperCase();
+    entry.append("El radar detecta una presencia. Dice llamarse ", aa, ".");
+    logEl.prepend(entry);
+    if (busy) return;
+    busy = true; askBtn.disabled = true; askBtn.textContent = "El espíritu escribe…";
+    await spell(name);
+    await sleep(800);
+    board.classList.remove("possessed");
+    moveTo(REST);
+    busy = false; askBtn.disabled = false; askBtn.textContent = "Invocar";
+  }
+
+  function angDist(a, b) { return ((a - b) % TAU + TAU) % TAU; }
+
+  function frame(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    const prev = sweep;
+    sweep = (sweep + dt * TAU / PERIOD) % TAU;
+    const step = angDist(sweep, prev);
+    const hit = a => angDist(sweep, a) <= step;
+
+    const w = scope.clientWidth, c = w / 2, R = c - 4;
+    g2.clearRect(0, 0, w, w);
+
+    // anillos cada 2 m y ejes
+    g2.strokeStyle = "rgba(127,194,140,.22)"; g2.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) { g2.beginPath(); g2.arc(c, c, R * i / 3, 0, TAU); g2.stroke(); }
+    g2.beginPath(); g2.moveTo(c - R, c); g2.lineTo(c + R, c); g2.moveTo(c, c - R); g2.lineTo(c, c + R); g2.stroke();
+    g2.fillStyle = "rgba(127,194,140,.5)";
+    g2.font = Math.max(9, w / 34) + "px 'Special Elite', monospace";
+    for (let i = 1; i <= 3; i++) g2.fillText(i * 2 + " m", c + 4, c - R * i / 3 + 12);
+
+    // barrido con estela
+    for (let i = 0; i < 40; i++) {
+      const a0 = sweep - i * .02;
+      g2.beginPath(); g2.moveTo(c, c);
+      g2.arc(c, c, R, a0 - .02 - Math.PI / 2, a0 - Math.PI / 2);
+      g2.closePath();
+      g2.fillStyle = `rgba(127,194,140,${.16 * (1 - i / 40)})`;
+      g2.fill();
+    }
+    g2.strokeStyle = "rgba(160,230,170,.8)"; g2.lineWidth = 2;
+    g2.beginPath(); g2.moveTo(c, c);
+    g2.lineTo(c + R * Math.cos(sweep - Math.PI / 2), c + R * Math.sin(sweep - Math.PI / 2)); g2.stroke();
+
+    const xy = b => [c + R * b.r * Math.cos(b.a - Math.PI / 2), c + R * b.r * Math.sin(b.a - Math.PI / 2)];
+    const fade = dt / PERIOD;
+
+    living.forEach(b => {
+      if (hit(b.a)) { b.alpha = 1; b.a += rand(-.05, .05); b.r = Math.min(.6, Math.max(.1, b.r + rand(-.02, .02))); }
+      b.alpha = Math.max(0, b.alpha - fade);
+      const [x, y] = xy(b);
+      g2.fillStyle = `rgba(170,240,180,${b.alpha})`;
+      g2.shadowColor = "rgba(127,194,140,.9)"; g2.shadowBlur = 10 * b.alpha;
+      g2.beginPath(); g2.arc(x, y, Math.max(3, w / 90), 0, TAU); g2.fill();
+    });
+
+    if (spirit) {
+      if (spirit.visible && hit(spirit.a)) {
+        spirit.alpha = 1;
+        ping(spirit.r < .2 ? 1320 : 880);
+        const m = spirit.r * RANGE_M;
+        rname.textContent = spirit.name;
+        rdist.textContent = m.toFixed(1).replace(".", ",") + " m";
+        rbear.textContent = String(Math.round(spirit.a * 180 / Math.PI)).padStart(3, "0") + "°";
+        if (!spirit.seen) { spirit.seen = true; introduce(spirit.name); }
+      }
+      spirit.alpha = Math.max(0, spirit.alpha - fade * .8);
+      const [x, y] = xy(spirit);
+      const a = spirit.alpha * (Math.random() < .12 ? .4 : 1);
+      g2.shadowColor = "rgba(200,57,45,1)"; g2.shadowBlur = 18 * a;
+      g2.fillStyle = `rgba(230,70,55,${a})`;
+      g2.beginPath(); g2.arc(x, y, Math.max(5, w / 55), 0, TAU); g2.fill();
+      g2.shadowBlur = 0;
+      g2.fillStyle = `rgba(240,120,100,${a})`;
+      g2.font = Math.max(11, w / 26) + "px 'UnifrakturCook', serif";
+      const label = spirit.name;
+      const tw = g2.measureText(label).width;
+      const lx = Math.min(Math.max(x - tw / 2, 6), w - tw - 6);
+      g2.fillText(label, lx, y - Math.max(10, w / 32));
+    }
+    g2.shadowBlur = 0;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  calib.addEventListener("submit", e => {
+    e.preventDefault();
+    const n = Math.max(1, Math.min(12, parseInt(peopleIn.value, 10) || 1));
+    if (soundOn) ensureAudio();
+    startRadar(n);
+  });
+
+  // disparador secreto: ".." en la pregunta o en cualquier parte de la página
+  question.addEventListener("input", () => {
+    if (question.value.endsWith("..")) {
+      question.value = question.value.slice(0, -2);
+      openCalibration();
+    }
+  });
+  let lastDot = 0;
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input")) return;
+    if (e.key !== ".") return;
+    const now = performance.now();
+    if (now - lastDot < 700) { lastDot = 0; openCalibration(); }
+    else lastDot = now;
+  });
+
   document.getElementById("reset").addEventListener("click", () => {
+    stopRadar();
     keys = []; render(); question.value = "";
     logEl.textContent = "";
     answerEl.classList.add("idle");
