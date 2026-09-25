@@ -848,12 +848,32 @@
       g2.fillStyle = `rgba(230,70,55,${a})`;
       g2.beginPath(); g2.arc(x, y, Math.max(5, w / 55), 0, TAU); g2.fill();
       g2.shadowBlur = 0;
-      g2.fillStyle = `rgba(240,120,100,${a})`;
-      g2.font = Math.max(11, w / 26) + "px 'UnifrakturCook', serif";
-      const label = spirit.name;
-      const tw = g2.measureText(label).width;
-      const lx = Math.min(Math.max(x - tw / 2, 6), w - tw - 6);
-      g2.fillText(label, lx, y - Math.max(10, w / 32));
+      // nombre junto al punto: queda visible entre barridos una vez identificado
+      const la = spirit.seen && spirit.visible ? Math.max(a, Math.random() < .06 ? .25 : .7) : a;
+      if (la > .02) {
+        const label = spirit.name.toUpperCase();
+        g2.font = Math.max(11, w / 24) + "px 'Special Elite', monospace";
+        const tw = g2.measureText(label).width, fh = Math.max(11, w / 24);
+        const lx = Math.min(Math.max(x - tw / 2, 8), w - tw - 8);
+        const ly = y - Math.max(12, w / 28) < fh + 6 ? y + fh + Math.max(10, w / 30) : y - Math.max(12, w / 28);
+        g2.fillStyle = `rgba(10,4,5,${la * .75})`;
+        g2.fillRect(lx - 5, ly - fh, tw + 10, fh + 6);
+        g2.strokeStyle = `rgba(200,57,45,${la * .8})`; g2.lineWidth = 1;
+        g2.strokeRect(lx - 5, ly - fh, tw + 10, fh + 6);
+        g2.shadowColor = "rgba(200,57,45,1)"; g2.shadowBlur = 8 * la;
+        g2.fillStyle = `rgba(255,140,120,${la})`;
+        g2.fillText(label, lx, ly);
+        g2.shadowBlur = 0;
+      }
+      // rótulo fijo en la parte baja de la pantalla del radar
+      if (spirit.seen) {
+        const txt = spirit.visible ? "PRESENCIA: " + spirit.name.toUpperCase() : "SEÑAL PERDIDA";
+        g2.font = Math.max(10, w / 30) + "px 'Special Elite', monospace";
+        const bw = g2.measureText(txt).width;
+        const blink = Math.floor(now / 600) % 2 ? 1 : .55;
+        g2.fillStyle = `rgba(230,80,65,${blink})`;
+        g2.fillText(txt, c - bw / 2, c + R * .8);
+      }
     }
     g2.shadowBlur = 0;
     requestAnimationFrame(frame);
