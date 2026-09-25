@@ -288,6 +288,15 @@
   summary:focus-visible { outline: 2px solid var(--candle); outline-offset: 3px; }
   details ol { margin: 12px 0 4px; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; max-width: 62ch; }
   details code { font-family: var(--type); color: var(--candle); }
+  .ghostline {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); z-index: 6;
+    transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
+    font-family: var(--display); font-weight: 700; font-size: clamp(1.1rem, 4.5vw, 1.5rem); text-align: center;
+    color: #ff5a4a; text-shadow: 0 0 14px rgba(200,57,45,.7), 0 0 2px #000;
+    opacity: 0; transition: opacity 1.6s ease; pointer-events: none;
+  }
+  .ghostline.on { opacity: .9; animation: ghostflick 2.2s steps(1) infinite; }
+  @keyframes ghostflick { 0%, 100% { opacity: .9; } 41% { opacity: .35; } 43% { opacity: .9; } 77% { opacity: .6; } 78% { opacity: .9; } }
   .sb-check { display: flex; gap: 10px; align-items: flex-start; font-size: .95rem; text-transform: none; letter-spacing: 0; font-family: var(--body); font-weight: 400; color: var(--bone); margin-bottom: 10px; }
   .sb-check input { margin-top: .3em; accent-color: var(--ember); }
   .sb-title { margin: 14px 0 8px; font-family: var(--type); font-weight: 700; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; color: var(--bone-dim); }
@@ -446,6 +455,7 @@
 
 <div class="flash" id="flash"></div>
 <div class="blackout" id="blackout" hidden></div>
+<p class="ghostline" id="ghostline" aria-live="polite"></p>
 <div class="call" id="call" role="dialog" aria-label="Llamada entrante" hidden>
   <div class="call-top">
     <p class="call-label" id="callLabel">Llamada entrante…</p>
@@ -599,6 +609,11 @@
     <div class="soundboard">
       <button type="button" id="callSoon">Llamada en 10 segundos</button>
       <button type="button" id="callNow">Llamada ahora</button>
+    </div>
+    <p class="sb-title">El espíritu habla solo</p>
+    <label class="sb-check"><input type="checkbox" id="saysOn" checked> Cada 35–80 segundos dice una frase de miedo en voz alta, sin que nadie pregunte</label>
+    <div class="soundboard">
+      <button type="button" id="sayNow">Que hable ahora</button>
     </div>
     <p class="sb-title">Sonidos a mano (tócalos sin que te vean)</p>
     <div class="soundboard" id="soundboard">
@@ -1427,6 +1442,7 @@
     clearTimeout(ambientTimer);
     ambientTimer = setTimeout(ambientLoop, 6000);
     setTimeout(loadMeSpeak, 1200); // la voz pesa unos MB: se carga en segundo plano
+    scheduleSaying(rnd(25000, 40000));
   }
   ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, armAudio, { capture: true }));
   // botonera secreta del médium
@@ -2672,6 +2688,72 @@
     }, 3000);
   });
   ["pointerup", "pointerleave", "pointercancel"].forEach(ev => blackout.addEventListener(ev, () => clearTimeout(blackPress)));
+
+  /* ---------- el espíritu habla solo ---------- */
+  const SAYINGS = [
+    "Sé que me estás escuchando",
+    "No apagues la luz",
+    "Alguien más está en esta casa",
+    "Te vi dormir anoche",
+    "Cuenten de nuevo. Somos uno más",
+    "No me dejes solo otra vez",
+    "Esta casa era mía",
+    "Tengo tanto frío",
+    "Nadie salió vivo de aquí",
+    "Mira debajo de la mesa",
+    "Sigo aquí",
+    "Me gusta cómo respiras",
+    "Ya aprendí sus nombres",
+    "El espejo no refleja lo que ves",
+    "No cierres los ojos",
+    "Pronto será medianoche",
+    "Llevo años esperándote",
+    "Tu sombra no se mueve contigo",
+    "Escuché lo que dijiste",
+    "Hay alguien sentado a tu lado",
+    "No te des vuelta",
+    "Todavía no me voy",
+    "Esta noche alguien no dormirá solo",
+    "Déjame entrar",
+    "Mi tumba está cerca",
+    "Uno de ustedes me invitó",
+    "Abre la ventana",
+    "Ahora eres parte de esto",
+    "Puedo oler tu miedo",
+    "Cuando duermas, iré por ti",
+  ];
+  const saysOn = document.getElementById("saysOn"), ghostline = document.getElementById("ghostline");
+  let sayTimer = null, sayBag = [];
+  function nextSaying() {
+    if (!sayBag.length) {
+      sayBag = SAYINGS.slice();
+      for (let i = sayBag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [sayBag[i], sayBag[j]] = [sayBag[j], sayBag[i]]; }
+    }
+    let t = sayBag.pop();
+    // a veces se dirige a alguien presente por su nombre
+    const names = living.filter(b => b.name).map(b => b.name);
+    if (names.length && Math.random() < .3) t = pick(names) + ". " + t;
+    return t;
+  }
+  function scheduleSaying(ms) {
+    clearTimeout(sayTimer);
+    sayTimer = setTimeout(spontaneous, ms);
+  }
+  function spontaneous(force) {
+    // no interrumpe una respuesta, una llamada, la cámara ni la pantalla negra
+    const quiet = busy || call || !blackout.hidden || (spec && spectools.hidden) || cam;
+    if (!force && (!saysOn.checked || !soundOn || !armed || quiet)) { scheduleSaying(rnd(12000, 20000)); return; }
+    const text = nextSaying();
+    SFX.susurro();
+    setTimeout(() => {
+      speak(text);
+      ghostline.textContent = text.toUpperCase();
+      ghostline.classList.add("on");
+      setTimeout(() => ghostline.classList.remove("on"), 4200 + text.length * 90);
+    }, 900);
+    scheduleSaying(rnd(35000, 80000));
+  }
+  document.getElementById("sayNow").addEventListener("click", () => { armAudio(); spontaneous(true); });
 
   document.getElementById("reset").addEventListener("click", () => {
     // lo que dirá la llamada se decide antes de borrar todo
