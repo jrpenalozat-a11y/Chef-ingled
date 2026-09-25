@@ -321,6 +321,9 @@
   /* el video queda en pantalla (detrás del lienzo) para que el teléfono no lo pause por estar oculto */
   .spec-frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .02; z-index: 0; pointer-events: none; }
   .spec-tools { display: flex; flex-wrap: wrap; gap: 10px; }
+  .spec-actions button[hidden] { display: none; }
+  .spec-actions button.rec, .spec-tools button.rec { color: #ff7a6b; border-color: #ff7a6b; box-shadow: 0 0 14px rgba(255,90,74,.2); }
+  .spec-actions button.rec:hover, .spec-tools button.rec:hover { background: rgba(255,90,74,.12); }
   .spec-tools button { flex: 1 1 140px; font-size: .8rem; padding: 10px 12px; border-color: var(--phos-dim); }
 
   /* ----- sombras y ritual ----- */
@@ -456,16 +459,23 @@
 
   <section class="specter" aria-label="Cámara espectral">
     <h2>Cámara espectral</h2>
-    <p class="status" id="sstatus">Toma una foto o graba unos segundos de la habitación. La cámara revela lo que el ojo no ve.</p>
+    <p class="status" id="sstatus">Graba unos segundos de la habitación o toma una foto. La cámara revela lo que el ojo no ve.</p>
     <div class="spec-actions">
+      <button type="button" id="recBtn" class="rec">● Grabar video</button>
       <button type="button" id="photoBtn">Foto espectral</button>
-      <button type="button" id="videoBtn">Video espectral</button>
+      <button type="button" id="videoBtn">Subir video</button>
+      <button type="button" id="camFallback" hidden>Usar la cámara del teléfono</button>
       <input type="file" id="photoIn" class="vh" accept="image/*">
       <input type="file" id="videoIn" class="vh" accept="video/*">
+      <input type="file" id="videoCam" class="vh" accept="video/*" capture="environment">
     </div>
     <div class="spec-frame" id="specframe" hidden>
       <video id="specvideo" playsinline muted preload="auto"></video>
       <canvas id="speccanvas"></canvas>
+    </div>
+    <div class="spec-tools" id="livetools" hidden>
+      <button type="button" id="recgo" class="rec">● Grabar</button>
+      <button type="button" id="reccancel">Cancelar</button>
     </div>
     <div class="spec-tools" id="spectools" hidden>
       <button type="button" id="specagain">Ver de nuevo</button>
@@ -487,7 +497,7 @@
     </div>
     <div class="actions">
       <button type="submit" class="primary" id="ask">Invocar</button>
-      <button type="button" class="ghost" id="sound" aria-pressed="false">Sonido: apagado</button>
+      <button type="button" class="ghost" id="sound" aria-pressed="true">Sonido: encendido</button>
       <button type="button" class="ghost" id="reset">Cerrar sesión</button>
     </div>
   </form>
@@ -505,7 +515,7 @@
       <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
       <li>Respuesta de sí o no: toca una vez la palabra «Sí» o «No» del tablero. Parpadea un instante y la próxima respuesta será esa. Toca de nuevo la misma palabra para cancelar. Esto tiene prioridad sobre todo lo demás.</li>
       <li>Con el sonido encendido, el espíritu dice la respuesta en voz alta con voz de ultratumba.</li>
-      <li>Cámara espectral: toma una foto o graba 5 a 10 segundos de un rincón oscuro. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
+      <li>Cámara espectral: pulsa «Grabar video» (la cámara se abre dentro de la app con visión nocturna; graba hasta 8 segundos) o toma una foto, apuntando a un rincón oscuro. En el video la luz baja, aparece una figura que se acerca y al final un rostro salta a la pantalla. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
       <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Escribe los nombres de los presentes separados por coma (o solo cuántos son), pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada uno. Con nombres, el espíritu los menciona en sus respuestas y dice junto a quién está. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
     <p class="sb-title">Sonidos a mano (tócalos sin que te vean)</p>
@@ -760,7 +770,7 @@
   }
 
   /* ---------- sonido ---------- */
-  let ctx = null, drone = null, soundOn = false;
+  let ctx = null, drone = null, soundOn = true;
   function ensureAudio() {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -1073,17 +1083,69 @@
       }
     },
   };
-  // voz de ultratumba con la síntesis de voz del navegador
+  // voz de ultratumba: la voz en español más grave del teléfono, al mínimo de tono,
+  // envuelta en un susurro que late con cada palabra y seguida de un eco susurrado
+  let voiceCache = null;
+  function darkVoice() {
+    const vs = speechSynthesis.getVoices().filter(v => /^es/i.test(v.lang));
+    if (!vs.length) return null;
+    const score = v =>
+      (/(jorge|diego|pablo|enrique|carlos|juan|miguel|antonio|alvaro|álvaro|raul|raúl|andres|andrés|jaime|male|hombre|masculin)/i.test(v.name) ? 5 : 0) -
+      (/(monica|mónica|paulina|helena|laura|lucia|lucía|elvira|marisol|sabina|female|mujer|femenin)/i.test(v.name) ? 3 : 0) +
+      (v.localService ? 1 : 0);
+    return vs.slice().sort((a, b) => score(b) - score(a))[0];
+  }
+  if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => { voiceCache = null; };
+
+  function whisperBed() {
+    const c = live(); if (!c) return null;
+    const t = c.currentTime;
+    const out = voice(0, .8);
+    const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 700;
+    const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2200; bp.Q.value = 1.4;
+    const g = c.createGain(); g.gain.value = 0;
+    const n = c.createBufferSource(); n.buffer = noiseBuf; n.loop = true;
+    n.connect(hp); hp.connect(bp); bp.connect(g); g.connect(out); n.start(t);
+    // bajo profundo debajo de la voz
+    const o = c.createOscillator(); o.frequency.value = 44;
+    const og = c.createGain(); og.gain.setValueAtTime(0, t); og.gain.linearRampToValueAtTime(.35, t + .6);
+    o.connect(og); og.connect(out); o.start(t);
+    const iv = setInterval(() => {
+      const now = c.currentTime;
+      bp.frequency.setTargetAtTime(rnd(1500, 3800), now, .03);
+      g.gain.setTargetAtTime(rnd(.03, .12), now, .04);
+    }, 90);
+    let done = false;
+    return {
+      kick() { const now = c.currentTime; g.gain.setTargetAtTime(.28, now, .01); g.gain.setTargetAtTime(.06, now + .12, .08); },
+      stop() {
+        if (done) return; done = true; clearInterval(iv);
+        const now = c.currentTime;
+        g.gain.setTargetAtTime(0, now, .2); og.gain.setTargetAtTime(0, now, .3);
+        n.stop(now + 1.5); o.stop(now + 1.5);
+      },
+    };
+  }
+
   function speak(text) {
     if (!soundOn || !window.speechSynthesis || !text) return;
     try {
-      const u = new SpeechSynthesisUtterance(text.toLowerCase());
-      u.lang = "es-ES";
-      const v = speechSynthesis.getVoices().find(v => /^es/i.test(v.lang));
-      if (v) u.voice = v;
-      u.pitch = .1; u.rate = .55; u.volume = 1;
+      const v = voiceCache || (voiceCache = darkVoice());
+      const make = (vol, rate) => {
+        const u = new SpeechSynthesisUtterance(text.toLowerCase());
+        u.lang = v ? v.lang : "es-ES"; if (v) u.voice = v;
+        u.pitch = 0; u.rate = rate; u.volume = vol;
+        return u;
+      };
+      const main = make(.95, .5), echo = make(.28, .62); // voz grave y luego su eco susurrado
+      const bed = whisperBed();
+      const stop = () => bed && bed.stop();
+      main.onboundary = echo.onboundary = () => bed && bed.kick();
+      echo.onend = stop; echo.onerror = stop; main.onerror = stop;
+      setTimeout(stop, 3000 + text.length * 260);
       speechSynthesis.cancel();
-      speechSynthesis.speak(u);
+      speechSynthesis.speak(main);
+      speechSynthesis.speak(echo);
     } catch (e) {}
   }
   // iOS solo deja hablar después de un toque: se desbloquea con una frase muda
@@ -1111,6 +1173,16 @@
       setTimeout(() => SFX.viento(), 300);
     } else { stopDrone(); clearTimeout(ambientTimer); }
   });
+  // el navegador solo deja sonar tras el primer toque: ahí arranca la atmósfera
+  let armed = false;
+  function armAudio() {
+    if (armed || !soundOn) return;
+    armed = true;
+    ensureAudio(); unlockSpeech(); startDrone();
+    clearTimeout(ambientTimer);
+    ambientTimer = setTimeout(ambientLoop, 6000);
+  }
+  ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, armAudio, { capture: true }));
   // botonera secreta del médium
   document.getElementById("soundboard").addEventListener("click", e => {
     const b = e.target.closest("button[data-sfx]"); if (!b) return;
@@ -1575,10 +1647,15 @@
   const sstatus = document.getElementById("sstatus");
   const specframe = document.getElementById("specframe");
   const spectools = document.getElementById("spectools");
+  const livetools = document.getElementById("livetools");
+  const recGo = document.getElementById("recgo");
+  const camFallback = document.getElementById("camFallback");
   const sc = document.getElementById("speccanvas");
   const sx = sc.getContext("2d");
   const svid = document.getElementById("specvideo");
-  let spec = null; // estado de la toma actual
+  const REC_MAX = 8; // segundos de grabación
+  let spec = null; // toma que se está mostrando
+  let cam = null;  // cámara en vivo
   let specRAF = 0;
 
   function sStatus(t, alert) { sstatus.textContent = t; sstatus.classList.toggle("alert", !!alert); }
@@ -1592,64 +1669,201 @@
     g.putImageData(d, 0, 0);
   })();
 
-  // figura fantasmal: mujer pálida de pelo largo que se disuelve en niebla
-  function makeGhost(h) {
-    const w = Math.round(h * .5);
-    const a = document.createElement("canvas"); a.width = w; a.height = h;
-    const g = a.getContext("2d"), cx = w / 2;
-    const body = g.createLinearGradient(0, h * .1, 0, h);
-    body.addColorStop(0, "rgba(236,242,255,.95)"); body.addColorStop(.55, "rgba(220,230,250,.55)"); body.addColorStop(1, "rgba(220,230,250,0)");
-    g.fillStyle = body;
-    g.beginPath();
-    g.moveTo(cx - w * .05, h * .19);
-    g.bezierCurveTo(cx - w * .2, h * .22, cx - w * .24, h * .3, cx - w * .22, h * .42);
-    g.bezierCurveTo(cx - w * .3, h * .65, cx - w * .44, h * .85, cx - w * .47, h);
-    g.lineTo(cx + w * .47, h);
-    g.bezierCurveTo(cx + w * .44, h * .85, cx + w * .3, h * .65, cx + w * .22, h * .42);
-    g.bezierCurveTo(cx + w * .24, h * .3, cx + w * .2, h * .22, cx + w * .05, h * .19);
-    g.closePath(); g.fill();
-    // cabeza
-    g.fillStyle = "rgba(240,245,255,.95)";
-    g.beginPath(); g.ellipse(cx, h * .12, w * .1, h * .072, 0, 0, TAU); g.fill();
-    // pelo negro que cae sobre la cara
-    g.fillStyle = "rgba(5,5,8,.9)";
-    g.beginPath();
-    g.moveTo(cx - w * .12, h * .1);
-    g.bezierCurveTo(cx - w * .1, h * .02, cx + w * .1, h * .02, cx + w * .12, h * .1);
-    g.bezierCurveTo(cx + w * .15, h * .22, cx + w * .12, h * .33, cx + w * .07, h * .36);
-    g.lineTo(cx + w * .03, h * .16);
-    g.lineTo(cx - w * .03, h * .16);
-    g.lineTo(cx - w * .07, h * .36);
-    g.bezierCurveTo(cx - w * .12, h * .33, cx - w * .15, h * .22, cx - w * .12, h * .1);
-    g.fill();
-    // ojos hundidos
-    g.fillStyle = "rgba(0,0,0,.95)";
-    g.beginPath(); g.ellipse(cx - w * .035, h * .115, w * .018, h * .01, 0, 0, TAU); g.fill();
-    g.beginPath(); g.ellipse(cx + w * .035, h * .115, w * .018, h * .01, 0, 0, TAU); g.fill();
-    // brazos colgando
-    g.strokeStyle = "rgba(230,238,255,.6)"; g.lineWidth = w * .045; g.lineCap = "round";
-    g.beginPath(); g.moveTo(cx - w * .2, h * .25); g.quadraticCurveTo(cx - w * .27, h * .4, cx - w * .24, h * .56); g.stroke();
-    g.beginPath(); g.moveTo(cx + w * .2, h * .25); g.quadraticCurveTo(cx + w * .27, h * .4, cx + w * .24, h * .56); g.stroke();
-    // desenfoque barato que funciona en todos los navegadores: reducir y ampliar
-    const blur = k => {
-      const sm = document.createElement("canvas");
-      sm.width = Math.max(4, Math.round(w / k)); sm.height = Math.max(4, Math.round(h / k));
-      const sg = sm.getContext("2d"); sg.imageSmoothingEnabled = true; sg.imageSmoothingQuality = "high";
-      sg.drawImage(a, 0, 0, sm.width, sm.height);
-      return sm;
-    };
-    const out = document.createElement("canvas"); out.width = w; out.height = h;
-    const o = out.getContext("2d"); o.imageSmoothingEnabled = true; o.imageSmoothingQuality = "high";
-    o.drawImage(blur(16), 0, 0, w, h);          // halo
-    o.globalAlpha = .8; o.drawImage(blur(6), 0, 0, w, h);  // cuerpo
-    o.globalAlpha = .18; o.drawImage(a, 0, 0);  // apenas un rastro de nitidez en la cara
-    // la parte baja se deshace en niebla granulada
-    o.globalAlpha = 1; o.globalCompositeOperation = "destination-out";
-    const fade = o.createLinearGradient(0, h * .45, 0, h);
-    fade.addColorStop(0, "rgba(0,0,0,0)"); fade.addColorStop(1, "rgba(0,0,0,1)");
-    o.fillStyle = fade; o.fillRect(0, 0, w, h);
-    o.globalAlpha = .35; o.fillStyle = o.createPattern(grain, "repeat"); o.fillRect(0, 0, w, h);
+  /* --- figuras: cada una tiene una capa clara (se suma a la luz) y una oscura (oscurece la escena) --- */
+  function layer(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
+  // desenfoque que funciona en todos los navegadores: reducir y ampliar
+  function softBlur(src, k) {
+    const sm = layer(Math.max(4, Math.round(src.width / k)), Math.max(4, Math.round(src.height / k)));
+    const g = sm.getContext("2d"); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+    g.drawImage(src, 0, 0, sm.width, sm.height);
+    const out = layer(src.width, src.height), o = out.getContext("2d");
+    o.imageSmoothingEnabled = true; o.imageSmoothingQuality = "high";
+    o.drawImage(sm, 0, 0, out.width, out.height);
     return out;
+  }
+  // halo difuso + cuerpo + un rastro de nitidez
+  function ethereal(src, k, sharp) {
+    const out = softBlur(src, k), o = out.getContext("2d");
+    o.globalAlpha = .75; o.drawImage(softBlur(src, Math.max(2, k / 3)), 0, 0);
+    o.globalAlpha = sharp; o.drawImage(src, 0, 0);
+    o.globalAlpha = 1;
+    return out;
+  }
+  // la parte baja se deshace en niebla granulada
+  function mist(c, from) {
+    const g = c.getContext("2d");
+    g.globalCompositeOperation = "destination-out";
+    const f = g.createLinearGradient(0, c.height * from, 0, c.height);
+    f.addColorStop(0, "rgba(0,0,0,0)"); f.addColorStop(1, "rgba(0,0,0,1)");
+    g.fillStyle = f; g.fillRect(0, 0, c.width, c.height);
+    g.globalAlpha = .3; g.fillStyle = g.createPattern(grain, "repeat"); g.fillRect(0, 0, c.width, c.height);
+    g.globalAlpha = 1; g.globalCompositeOperation = "source-over";
+  }
+
+  // dama pálida: pelo negro sobre la cara, cuencas vacías, brazos demasiado largos
+  function makeLady(h) {
+    const w = Math.round(h * .46), cx = w / 2;
+    const L = layer(w, h), D = layer(w, h), l = L.getContext("2d"), d = D.getContext("2d");
+    const body = l.createLinearGradient(0, h * .15, 0, h);
+    body.addColorStop(0, "rgba(232,238,250,.95)"); body.addColorStop(.5, "rgba(210,222,240,.6)"); body.addColorStop(1, "rgba(200,215,235,.1)");
+    l.fillStyle = body;
+    l.beginPath();
+    l.moveTo(cx - w * .04, h * .165);
+    l.quadraticCurveTo(cx - w * .1, h * .2, cx - w * .25, h * .235);
+    l.quadraticCurveTo(cx - w * .27, h * .3, cx - w * .2, h * .36);
+    l.quadraticCurveTo(cx - w * .15, h * .44, cx - w * .17, h * .5);
+    l.bezierCurveTo(cx - w * .3, h * .7, cx - w * .4, h * .85, cx - w * .44, h * .97);
+    let x = cx - w * .44; // borde del vestido roído
+    while (x < cx + w * .44) { const nx = Math.min(cx + w * .44, x + w * rnd(.03, .08)); l.lineTo((x + nx) / 2, h * rnd(.88, 1)); l.lineTo(nx, h * rnd(.93, .99)); x = nx; }
+    l.bezierCurveTo(cx + w * .4, h * .85, cx + w * .3, h * .7, cx + w * .17, h * .5);
+    l.quadraticCurveTo(cx + w * .15, h * .44, cx + w * .2, h * .36);
+    l.quadraticCurveTo(cx + w * .27, h * .3, cx + w * .25, h * .235);
+    l.quadraticCurveTo(cx + w * .1, h * .2, cx + w * .04, h * .165);
+    l.closePath(); l.fill();
+    l.strokeStyle = "rgba(225,233,248,.75)"; l.lineCap = "round";
+    [-1, 1].forEach(sd => {
+      l.lineWidth = w * .05;
+      l.beginPath(); l.moveTo(cx + sd * w * .23, h * .25); l.quadraticCurveTo(cx + sd * w * .31, h * .42, cx + sd * w * .28, h * .6); l.stroke();
+      l.lineWidth = w * .012;
+      for (let i = 0; i < 4; i++) {
+        l.beginPath(); l.moveTo(cx + sd * w * .28, h * .6);
+        l.quadraticCurveTo(cx + sd * w * (.27 + i * .012), h * .65, cx + sd * w * (.25 + i * .018), h * (.69 + i * .006)); l.stroke();
+      }
+    });
+    l.fillStyle = "rgba(235,240,252,.9)"; l.fillRect(cx - w * .035, h * .14, w * .07, h * .04);
+    const tilt = -.14;
+    l.save(); l.translate(cx, h * .1); l.rotate(tilt);
+    l.fillStyle = "rgba(242,246,255,.97)"; l.beginPath(); l.ellipse(0, 0, w * .1, h * .07, 0, 0, TAU); l.fill();
+    l.restore();
+    d.save(); d.translate(cx, h * .1); d.rotate(tilt);
+    d.strokeStyle = "rgba(0,0,0,.85)"; d.lineCap = "round";
+    for (let i = 0; i < 80; i++) {
+      const x0 = rnd(-w * .11, w * .11), len = rnd(h * .18, h * .38), sway = rnd(-w * .08, w * .08);
+      const face = Math.abs(x0) < w * .04 && Math.random() < .75; // la cara asoma por el centro
+      d.lineWidth = rnd(w * .006, w * .018);
+      d.beginPath(); d.moveTo(x0, -h * .066);
+      d.bezierCurveTo(x0 * 1.3, 0, x0 * 1.4 + sway, len * .5, x0 * 1.2 + sway, face ? h * .015 : len);
+      d.stroke();
+    }
+    d.fillStyle = "rgba(0,0,0,.95)";
+    d.beginPath(); d.ellipse(-w * .035, -h * .004, w * .022, h * .013, .1, 0, TAU); d.fill();
+    d.beginPath(); d.ellipse(w * .035, -h * .004, w * .022, h * .013, -.1, 0, TAU); d.fill();
+    d.beginPath(); d.ellipse(0, h * .042, w * .016, h * .024, 0, 0, TAU); d.fill();
+    d.restore();
+    const shade = d.createRadialGradient(cx, h * .55, 0, cx, h * .55, w * .55);
+    shade.addColorStop(0, "rgba(0,0,0,.3)"); shade.addColorStop(1, "rgba(0,0,0,0)");
+    d.fillStyle = shade; d.fillRect(0, 0, w, h);
+    const light = ethereal(L, 14, .22), dark = ethereal(D, 9, .4);
+    mist(light, .5); mist(dark, .6);
+    // pupilas diminutas que brillan dentro de las cuencas
+    const lg = light.getContext("2d");
+    lg.save(); lg.translate(cx, h * .1); lg.rotate(tilt); lg.fillStyle = "rgba(255,255,255,.95)";
+    [-1, 1].forEach(sd => { lg.beginPath(); lg.arc(sd * w * .035, -h * .004, Math.max(1, w * .005), 0, TAU); lg.fill(); });
+    lg.restore();
+    return { light, dark, w, h, lightFirst: true };
+  }
+
+  // sombra: figura negra más oscura que la habitación, con reflejo infrarrojo en los ojos
+  function makeShade(h) {
+    const w = Math.round(h * .42), cx = w / 2;
+    const D = layer(w, h), d = D.getContext("2d");
+    d.fillStyle = "rgba(0,0,0,.94)";
+    d.beginPath(); d.ellipse(cx, h * .09, w * .1, h * .068, 0, 0, TAU); d.fill();
+    d.beginPath();
+    d.moveTo(cx - w * .05, h * .15);
+    d.quadraticCurveTo(cx - w * .3, h * .19, cx - w * .34, h * .3);
+    d.lineTo(cx - w * .3, h * .62); d.lineTo(cx - w * .22, h); d.lineTo(cx + w * .22, h); d.lineTo(cx + w * .3, h * .62);
+    d.lineTo(cx + w * .34, h * .3);
+    d.quadraticCurveTo(cx + w * .3, h * .19, cx + w * .05, h * .15);
+    d.closePath(); d.fill();
+    d.lineWidth = w * .06; d.strokeStyle = "rgba(0,0,0,.9)"; d.lineCap = "round";
+    [-1, 1].forEach(sd => { d.beginPath(); d.moveTo(cx + sd * w * .31, h * .3); d.quadraticCurveTo(cx + sd * w * .38, h * .5, cx + sd * w * .33, h * .7); d.stroke(); });
+    const dark = ethereal(D, 12, .5); mist(dark, .55);
+    const light = layer(w, h), l = light.getContext("2d");
+    [-1, 1].forEach(sd => {
+      const ex = cx + sd * w * .036, ey = h * .085, r = w * .05;
+      const gl = l.createRadialGradient(ex, ey, 0, ex, ey, r);
+      gl.addColorStop(0, "rgba(255,255,255,1)"); gl.addColorStop(.25, "rgba(220,255,225,.8)"); gl.addColorStop(1, "rgba(200,255,210,0)");
+      l.fillStyle = gl; l.beginPath(); l.arc(ex, ey, r, 0, TAU); l.fill();
+    });
+    return { light, dark, w, h };
+  }
+
+  // rostro que se abalanza sobre la cámara
+  function makeFace(S) {
+    const c = S / 2, F = layer(S, S), f = F.getContext("2d"), D = layer(S, S), d = D.getContext("2d");
+    const skin = f.createRadialGradient(c, c * .9, S * .05, c, c, S * .46);
+    skin.addColorStop(0, "rgba(245,248,255,1)"); skin.addColorStop(.7, "rgba(210,220,238,.85)"); skin.addColorStop(1, "rgba(200,210,230,0)");
+    f.fillStyle = skin; f.beginPath(); f.ellipse(c, c, S * .3, S * .42, 0, 0, TAU); f.fill();
+    d.fillStyle = "rgba(0,0,0,.97)";
+    [-1, 1].forEach(sd => { d.beginPath(); d.ellipse(c + sd * S * .11, c * .86, S * .075, S * .06, sd * .2, 0, TAU); d.fill(); });
+    d.beginPath(); d.ellipse(c, c * 1.38, S * .07, S * .15, 0, 0, TAU); d.fill();
+    d.strokeStyle = "rgba(0,0,0,.9)"; d.lineCap = "round";
+    for (let i = 0; i < 130; i++) {
+      const x0 = rnd(c - S * .32, c + S * .32), side = x0 < c ? -1 : 1;
+      if (Math.abs(x0 - c) < S * .13 && Math.random() < .85) continue;
+      d.lineWidth = rnd(S * .004, S * .013);
+      d.beginPath(); d.moveTo(x0, c - S * .42);
+      d.bezierCurveTo(x0 + side * S * .05, c - S * .1, x0 + side * rnd(0, S * .08), c + S * .2, x0 + side * rnd(0, S * .12), S);
+      d.stroke();
+    }
+    const light = ethereal(F, 10, .4), dark = ethereal(D, 5, .75);
+    // las pupilas van en una capa aparte para que brillen dentro de las cuencas negras
+    const eyes = layer(S, S), eg = eyes.getContext("2d");
+    [-1, 1].forEach(sd => {
+      const ex = c + sd * S * .11, ey = c * .86, r = S * .03;
+      const gl = eg.createRadialGradient(ex, ey, 0, ex, ey, r);
+      gl.addColorStop(0, "rgba(255,255,255,1)"); gl.addColorStop(.3, "rgba(230,255,235,.7)"); gl.addColorStop(1, "rgba(220,255,230,0)");
+      eg.fillStyle = gl; eg.beginPath(); eg.arc(ex, ey, r, 0, TAU); eg.fill();
+    });
+    return { light, dark, eyes, w: S, h: S, lightFirst: true };
+  }
+
+  function makeSpecter(h) { return Math.random() < .55 ? makeLady(h) : makeShade(h); }
+
+  // la dama y el rostro pintan primero la piel y encima el pelo y las cuencas;
+  // la sombra pinta primero su negrura y encima el brillo de los ojos
+  function paintSprite(S, x, y, w, h, alpha) {
+    const dark = () => { sx.globalCompositeOperation = "multiply"; sx.globalAlpha = alpha; sx.drawImage(S.dark, x, y, w, h); };
+    const light = () => { sx.globalCompositeOperation = "screen"; sx.globalAlpha = alpha; sx.drawImage(S.light, x, y, w, h); };
+    if (S.lightFirst) { light(); dark(); } else { dark(); light(); }
+  }
+
+  function drawGhost(alpha, o = {}) {
+    const S = spec && spec.ghost; if (!S || alpha <= 0) return;
+    const k = o.scale || 1, w = S.w * k, h = S.h * k;
+    const x = spec.gx - w / 2 + (o.dx || 0), y = sc.height * .98 - h;
+    sx.save();
+    if (o.rot) { sx.translate(x + w / 2, y + h * .15); sx.rotate(o.rot); sx.translate(-(x + w / 2), -(y + h * .15)); }
+    paintSprite(S, x, y, w, h, alpha);
+    // doble exposición: una copia corrida, como si la cámara no lograra enfocarla
+    if (Math.random() < .3) { sx.globalCompositeOperation = "screen"; sx.globalAlpha = alpha * .35; sx.drawImage(S.light, x + w * rnd(-.07, .07), y, w, h); }
+    // interferencia: una franja se desplaza
+    if (Math.random() < .22) {
+      const sy = Math.random() * S.h * .8, sh = S.h * rnd(.03, .08), shift = (Math.random() - .5) * w * .3;
+      sx.globalCompositeOperation = "screen"; sx.globalAlpha = alpha * .8;
+      sx.drawImage(S.light, 0, sy, S.w, sh, x + shift, y + sy * k, w, sh * k);
+    }
+    sx.restore();
+  }
+
+  function drawFace() {
+    if (!spec.face) spec.face = makeFace(Math.round(sc.height * 1.15));
+    const S = spec.face, s = S.w * rnd(.95, 1.08);
+    sx.save();
+    const x = (sc.width - s) / 2 + rnd(-12, 12), y = (sc.height - s) / 2 + rnd(-10, 10);
+    paintSprite(S, x, y, s, s, .95);
+    sx.globalCompositeOperation = "screen"; sx.globalAlpha = 1; sx.drawImage(S.eyes, x, y, s, s);
+    sx.restore();
+  }
+
+  // el cuadro se rasga en franjas horizontales
+  function tear() {
+    const W = sc.width, H = sc.height, n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const y = Math.random() * H, hh = H * rnd(.02, .08);
+      sx.drawImage(sc, 0, y, W, hh, rnd(-W * .06, W * .06), y, W, hh);
+    }
   }
 
   // busca el rincón más oscuro para esconder a la figura
@@ -1664,7 +1878,7 @@
       for (let y = y0; y < y0 + ch; y += 6) for (let x = x0; x < x0 + cw; x += 6) {
         const q = (y * W + x) * 4; sum += img[q] * .3 + img[q + 1] * .59 + img[q + 2] * .11; n++;
       }
-      const lum = sum / Math.max(1, n) + Math.abs(i - cols / 2) * 4; // leve preferencia por el centro
+      const lum = sum / Math.max(1, n) + Math.abs(i - cols / 2) * 4;
       if (!best || lum < best.lum) best = { lum, x: x0 + cw / 2 };
     }
     return best ? best.x : W / 2;
@@ -1678,45 +1892,29 @@
     return nextEvasive();
   }
 
-  // visión nocturna: gris verdoso con grano y viñeta
-  function drawNight(source, t) {
+  // visión nocturna: gris verdoso con grano, viñeta y líneas de barrido
+  function drawNight(source, t, fx = {}) {
     const W = sc.width, H = sc.height;
     sx.globalCompositeOperation = "source-over"; sx.globalAlpha = 1;
     sx.drawImage(source, 0, 0, W, H);
     sx.globalCompositeOperation = "saturation"; sx.fillStyle = "#000"; sx.fillRect(0, 0, W, H);
     sx.globalCompositeOperation = "multiply"; sx.fillStyle = "#86d493"; sx.fillRect(0, 0, W, H);
     sx.globalCompositeOperation = "screen"; sx.fillStyle = "rgba(20,40,24,.35)"; sx.fillRect(0, 0, W, H);
-    sx.globalCompositeOperation = "overlay"; sx.globalAlpha = .35;
+    sx.globalCompositeOperation = "overlay"; sx.globalAlpha = Math.min(.9, .35 + (fx.noise || 0));
     sx.save(); sx.translate(-Math.random() * 192, -Math.random() * 192);
     sx.fillStyle = sx.createPattern(grain, "repeat"); sx.fillRect(0, 0, W + 192, H + 192); sx.restore();
     sx.globalAlpha = 1; sx.globalCompositeOperation = "source-over";
+    if (fx.dim) { sx.fillStyle = `rgba(0,0,0,${fx.dim})`; sx.fillRect(0, 0, W, H); }
     const v = sx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .75);
     v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.75)");
     sx.fillStyle = v; sx.fillRect(0, 0, W, H);
-    // líneas de barrido
     sx.fillStyle = "rgba(0,0,0,.18)";
     for (let y = (t * 40) % 4; y < H; y += 4) sx.fillRect(0, y, W, 1);
   }
 
-  function drawGhost(alpha) {
-    if (!spec.ghost || alpha <= 0) return;
-    const gw = spec.ghost.width, gh = spec.ghost.height;
-    const x = spec.gx - gw / 2, y = sc.height * .92 - gh;
-    sx.save();
-    sx.globalCompositeOperation = "screen";
-    sx.globalAlpha = alpha;
-    sx.drawImage(spec.ghost, x, y);
-    // interferencia: de vez en cuando una franja se desplaza
-    if (Math.random() < .25) {
-      const sy = Math.random() * gh * .8, sh = gh * rnd(.03, .09), shift = (Math.random() - .5) * gw * .25;
-      sx.globalAlpha = alpha * .8;
-      sx.drawImage(spec.ghost, 0, sy, gw, sh, x + shift, y + sy, gw, sh);
-    }
-    sx.restore();
-  }
-
   function hud(t, label, alert) {
     const W = sc.width, H = sc.height, f = Math.max(12, W / 40);
+    sx.globalCompositeOperation = "source-over"; sx.globalAlpha = 1;
     sx.font = "700 " + f + "px 'Courier Prime', monospace";
     sx.fillStyle = alert ? "rgba(255,90,74,.95)" : "rgba(190,255,200,.9)";
     sx.fillText(label, f, f * 1.8);
@@ -1731,6 +1929,7 @@
   function drawMessage(text, shown) {
     if (!text) return;
     const W = sc.width, H = sc.height, f = Math.max(18, W / 16);
+    sx.globalCompositeOperation = "source-over"; sx.globalAlpha = 1;
     sx.font = "700 " + f + "px 'Cinzel', serif";
     const words = text.toUpperCase().slice(0, shown).split(" "), lines = [];
     let line = "";
@@ -1756,14 +1955,15 @@
     spec = null;
   }
   function closeSpec() {
+    stopCam();
     stopSpec();
-    specframe.hidden = true; spectools.hidden = true;
-    sStatus("Toma una foto o graba unos segundos de la habitación. La cámara revela lo que el ojo no ve.");
+    specframe.hidden = true; spectools.hidden = true; livetools.hidden = true;
+    sStatus("Graba unos segundos de la habitación o toma una foto. La cámara revela lo que el ojo no ve.");
   }
 
   // ---- foto ----
   async function spectralPhoto(file) {
-    stopSpec();
+    stopCam(); stopSpec();
     sStatus("Cargando la foto…");
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -1775,10 +1975,11 @@
     }
     fitCanvas(img.naturalWidth, img.naturalHeight);
     spec = { kind: "photo", url, src: img, t0: performance.now(), msg: spectralMessage() };
+    sx.globalCompositeOperation = "source-over"; sx.globalAlpha = 1;
     sx.drawImage(img, 0, 0, sc.width, sc.height);
     spec.gx = darkestSpot();
-    spec.ghost = makeGhost(Math.round(sc.height * rnd(.5, .62)));
-    specframe.hidden = false; spectools.hidden = true;
+    spec.ghost = makeSpecter(Math.round(sc.height * rnd(.55, .68)));
+    specframe.hidden = false; spectools.hidden = true; livetools.hidden = true;
     specframe.scrollIntoView({ behavior: "smooth", block: "center" });
     sStatus("Analizando espectro infrarrojo…");
     SFX.estatica();
@@ -1790,9 +1991,8 @@
     const loop = now => {
       if (spec !== cur) return;
       const t = (now - cur.t0) / 1000;
-      drawNight(cur.src, t);
+      drawNight(cur.src, t, { dim: t > 2.6 && t < 3.4 ? .3 : 0 });
       if (t < 3.2) {
-        // barrido de análisis
         const y = (t / 3.2) * sc.height;
         const band = sx.createLinearGradient(0, y - 60, 0, y + 6);
         band.addColorStop(0, "rgba(150,255,170,0)"); band.addColorStop(1, "rgba(150,255,170,.45)");
@@ -1801,8 +2001,9 @@
       } else {
         if (!revealed) { revealed = true; SFX.lamento(); SFX.susurro(); sStatus("Anomalía detectada en la imagen.", true); }
         const rt = t - 3.2;
-        const flick = Math.random() < .08 ? .3 : 1;
-        drawGhost(Math.min(.62, rt / 1.8 * .62) * flick);
+        const flick = Math.random() < .08 ? .25 : 1;
+        drawGhost(Math.min(.85, rt / 1.6 * .85) * flick, { rot: Math.random() < .03 ? rnd(-.06, .06) : 0 });
+        if (Math.random() < .05) tear();
         hud(t, "ANOMALÍA DETECTADA", true);
         if (rt > 2.4) {
           const shown = Math.floor((rt - 2.4) * 14);
@@ -1817,18 +2018,18 @@
   }
 
   // ---- video ----
-  async function spectralVideo(file) {
+  async function spectralVideo(file, durHint) {
     stopSpec();
     const url = URL.createObjectURL(file);
-    spec = { kind: "video", url, src: svid, msg: spectralMessage() };
+    spec = { kind: "video", url, src: svid, msg: spectralMessage(), durHint };
     const cur = spec;
     sStatus("Cargando el video…");
-    specframe.hidden = false; spectools.hidden = true;
+    specframe.hidden = false; spectools.hidden = true; livetools.hidden = true;
+    svid.srcObject = null;
     svid.muted = true; svid.playsInline = true; svid.setAttribute("playsinline", ""); svid.setAttribute("webkit-playsinline", "");
     svid.src = url;
     try { svid.load(); } catch (e) {}
-    // iPhone no carga el video hasta que se intenta reproducir
-    svid.play().catch(() => {});
+    svid.play().catch(() => {}); // iPhone no carga el video hasta que se intenta reproducir
     const ready = await new Promise(res => {
       const done = v => { clearTimeout(to); ["loadeddata", "canplay", "playing", "error"].forEach(ev => svid.removeEventListener(ev, h)); res(v); };
       const h = e => done(e.type !== "error");
@@ -1844,33 +2045,47 @@
     fitCanvas(svid.videoWidth, svid.videoHeight);
     specframe.scrollIntoView({ behavior: "smooth", block: "center" });
     sStatus("Reproduciendo con filtro infrarrojo…");
-    cur.ghost = makeGhost(Math.round(sc.height * rnd(.5, .62)));
+    cur.ghost = makeSpecter(Math.round(sc.height * rnd(.55, .7)));
+    cur.face = null;
     playVideo(cur);
   }
   function playVideo(cur) {
-    const dur = isFinite(svid.duration) && svid.duration > 0 ? svid.duration : 6;
-    cur.win = { a: dur * rnd(.35, .55), len: Math.max(.8, Math.min(2.2, dur * .3)) };
-    cur.placed = false; cur.announced = false; cur.ended = false;
+    const dur = isFinite(svid.duration) && svid.duration > 0 ? svid.duration : (cur.durHint || 6);
+    const a = Math.max(.8, dur * rnd(.28, .4)), len = Math.max(1.3, Math.min(2.8, dur * .35));
+    cur.win = { a, len, jump: a + len + .5 <= dur - .2 };
+    cur.placed = cur.announced = cur.preSnd = cur.jumped = cur.ended = false;
     let endT = 0, spoke = false;
     svid.currentTime = 0;
     svid.play().catch(() => {});
     const loop = now => {
       if (spec !== cur) return;
       const t = svid.currentTime;
-      drawNight(svid, t);
-      const inWin = t >= cur.win.a && t <= cur.win.a + cur.win.len;
-      if (inWin) {
-        if (!cur.placed) { cur.placed = true; cur.gx = darkestSpot(); drawNight(svid, t); }
-        if (!cur.announced) { cur.announced = true; SFX.estatica(); SFX.lamento(); }
-        const p = (t - cur.win.a) / cur.win.len;
-        const env = Math.sin(Math.PI * p);
-        drawGhost(env * .68 * (Math.random() < .12 ? .2 : 1));
+      const pre = t > a - 1 && t < a;                        // antes de aparecer baja la luz
+      const inWin = t >= a && t <= a + len;
+      const jump = cur.win.jump && t > a + len + .05 && t < a + len + .5;
+      if ((inWin || jump) && Math.random() < .1) {           // cuadro congelado, la señal se corta
+        tear(); specRAF = requestAnimationFrame(loop); return;
       }
-      hud(t, inWin ? "ANOMALÍA DETECTADA" : "IR ACTIVO", inWin);
+      drawNight(svid, t, { dim: pre ? (t - (a - 1)) * .35 : inWin ? .3 : 0, noise: pre || inWin || jump ? .3 : 0 });
+      if (pre && !cur.preSnd) { cur.preSnd = true; SFX.retumbo(); SFX.respiracion(); }
+      if (inWin) {
+        if (!cur.placed) { cur.placed = true; cur.gx = darkestSpot(); }
+        if (!cur.announced) { cur.announced = true; SFX.estatica(); SFX.lamento(); SFX.susurro(); sStatus("Algo se está formando en la imagen…", true); }
+        const p = (t - a) / len;
+        const env = Math.min(1, p * 3) * (p > .85 ? (1 - p) / .15 : 1); // aparece, se queda, se desvanece
+        const twitch = Math.random() < .07 ? rnd(-.09, .09) : 0;   // espasmos de la cabeza
+        drawGhost(env * .9 * (Math.random() < .1 ? .15 : 1), { scale: .85 + p * .4, dx: Math.sin(t * 1.4) * sc.width * .012, rot: twitch });
+        if (Math.random() < .15) tear();
+      }
+      if (jump) {
+        if (!cur.jumped) { cur.jumped = true; scare(); }
+        drawFace(); tear();
+      }
+      hud(t, inWin || jump ? "ANOMALÍA DETECTADA" : pre ? "INTERFERENCIA" : "IR ACTIVO", inWin || jump || pre);
       if (svid.ended || cur.ended) {
         if (!cur.ended) { cur.ended = true; endT = now; sStatus("Mensaje recibido.", true); SFX.susurro(); }
         const et = (now - endT) / 1000;
-        drawGhost(.25 * (Math.random() < .1 ? 0 : 1)); // queda una sombra al final
+        drawGhost(.35 * (Math.random() < .1 ? 0 : 1), { scale: .7 }); // queda su sombra al fondo
         const shown = Math.floor(et * 14);
         drawMessage(cur.msg, shown);
         if (!spoke) { spoke = true; speak(cur.msg); }
@@ -1881,36 +2096,122 @@
     specRAF = requestAnimationFrame(loop);
   }
 
-  const photoIn = document.getElementById("photoIn"), videoIn = document.getElementById("videoIn");
+  // ---- grabar dentro de la app ----
+  function pickMime() {
+    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
+    return ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(m => MediaRecorder.isTypeSupported(m)) || "";
+  }
+  function stopCam() {
+    if (!cam) return;
+    const c = cam; cam = null;
+    try { if (c.rec && c.rec.state !== "inactive") { c.rec.onstop = null; c.rec.stop(); } } catch (e) {}
+    c.stream.getTracks().forEach(t => t.stop());
+    if (svid.srcObject) svid.srcObject = null;
+    cancelAnimationFrame(specRAF);
+  }
+  async function openCamera() {
+    stopCam(); stopSpec();
+    camFallback.hidden = true;
+    sStatus("Pidiendo permiso para usar la cámara…");
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    } catch (e) {
+      sStatus("La cámara no se pudo abrir dentro de la app. Pulsa «Usar la cámara del teléfono».", true);
+      camFallback.hidden = false;
+      return;
+    }
+    const c = cam = { stream, rec: null, chunks: [], t0: 0 };
+    svid.removeAttribute("src"); svid.srcObject = stream; svid.muted = true;
+    await svid.play().catch(() => {});
+    for (let i = 0; i < 30 && !svid.videoWidth; i++) await sleep(100);
+    if (cam !== c) return;
+    fitCanvas(svid.videoWidth || 1280, svid.videoHeight || 720);
+    specframe.hidden = false; spectools.hidden = true; livetools.hidden = false;
+    recGo.textContent = "● Grabar";
+    specframe.scrollIntoView({ behavior: "smooth", block: "center" });
+    sStatus("Cámara infrarroja en vivo. Apunta a un rincón oscuro y pulsa «Grabar».");
+    const loop = now => {
+      if (cam !== c) return;
+      const t = c.rec ? (now - c.t0) / 1000 : now / 1000;
+      drawNight(svid, t);
+      hud(t, c.rec ? "GRABANDO · " + Math.max(0, Math.ceil(REC_MAX - t)) + " s" : "IR EN VIVO", !!c.rec);
+      if (c.rec && t >= REC_MAX) finishRecording();
+      specRAF = requestAnimationFrame(loop);
+    };
+    specRAF = requestAnimationFrame(loop);
+  }
+  function startRecording() {
+    const c = cam; if (!c || c.rec) return;
+    const mime = pickMime();
+    let rec;
+    try { rec = mime ? new MediaRecorder(c.stream, { mimeType: mime }) : new MediaRecorder(c.stream); }
+    catch (e) { sStatus("Este navegador no permite grabar aquí. Pulsa «Usar la cámara del teléfono».", true); camFallback.hidden = false; return; }
+    c.rec = rec; c.chunks = []; c.t0 = performance.now();
+    rec.ondataavailable = e => { if (e.data && e.data.size) c.chunks.push(e.data); };
+    rec.start(250);
+    recGo.textContent = "■ Detener";
+    sStatus("Grabando… quédate quieto y en silencio.", true);
+    SFX.estatica();
+  }
+  function finishRecording() {
+    const c = cam; if (!c || !c.rec || c.rec.state === "inactive" || c.stopping) return;
+    c.stopping = true;
+    const secs = (performance.now() - c.t0) / 1000;
+    c.rec.onstop = () => {
+      const blob = new Blob(c.chunks, { type: c.rec.mimeType || "video/webm" });
+      stopCam();
+      livetools.hidden = true;
+      if (!blob.size) { sStatus("La grabación quedó vacía. Intenta de nuevo.", true); return; }
+      spectralVideo(blob, secs);
+    };
+    c.rec.stop();
+  }
+
+  const photoIn = document.getElementById("photoIn"), videoIn = document.getElementById("videoIn"), videoCam = document.getElementById("videoCam");
+  const armSound = () => { if (soundOn) { ensureAudio(); unlockSpeech(); } };
+  document.getElementById("recBtn").addEventListener("click", () => {
+    armSound();
+    // sin cámara dentro del navegador: se abre directamente la cámara del teléfono
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { videoCam.click(); return; }
+    openCamera();
+  });
+  camFallback.addEventListener("click", () => { armSound(); videoCam.click(); });
+  recGo.addEventListener("click", () => {
+    armSound();
+    if (!cam) return;
+    if (!cam.rec) startRecording();
+    else if ((performance.now() - cam.t0) / 1000 > 1.5) finishRecording();
+  });
+  document.getElementById("reccancel").addEventListener("click", closeSpec);
   document.getElementById("photoBtn").addEventListener("click", () => {
-    if (soundOn) { ensureAudio(); unlockSpeech(); }
+    armSound();
     sStatus("Abriendo la cámara… Elige «Tomar foto» o una foto de la galería.");
     photoIn.click();
   });
   document.getElementById("videoBtn").addEventListener("click", () => {
-    if (soundOn) { ensureAudio(); unlockSpeech(); }
-    sStatus("Abriendo la cámara… Elige «Grabar video» o un video de la galería.");
+    armSound();
+    sStatus("Elige un video de la galería.");
     videoIn.click();
   });
   photoIn.addEventListener("change", e => {
     const f = e.target.files && e.target.files[0]; e.target.value = "";
     if (!f) return;
-    if (soundOn) { ensureAudio(); unlockSpeech(); }
-    spectralPhoto(f);
+    armSound(); spectralPhoto(f);
   });
-  videoIn.addEventListener("change", e => {
+  [videoIn, videoCam].forEach(inp => inp.addEventListener("change", e => {
     const f = e.target.files && e.target.files[0]; e.target.value = "";
     if (!f) return;
-    if (soundOn) { ensureAudio(); unlockSpeech(); }
-    spectralVideo(f);
-  });
+    armSound(); stopCam(); spectralVideo(f);
+  }));
   document.getElementById("specagain").addEventListener("click", () => {
     if (!spec) return;
-    if (soundOn) unlockSpeech();
+    armSound();
     spectools.hidden = true;
     spec.msg = spectralMessage();
-    if (spec.kind === "photo") { spec.t0 = performance.now(); sStatus("Analizando espectro infrarrojo…"); cancelAnimationFrame(specRAF); runPhoto(); }
-    else { cancelAnimationFrame(specRAF); sStatus("Reproduciendo con filtro infrarrojo…"); playVideo(spec); }
+    cancelAnimationFrame(specRAF);
+    if (spec.kind === "photo") { spec.t0 = performance.now(); sStatus("Analizando espectro infrarrojo…"); runPhoto(); }
+    else { sStatus("Reproduciendo con filtro infrarrojo…"); spec.ghost = makeSpecter(Math.round(sc.height * rnd(.55, .7))); spec.face = null; playVideo(spec); }
   });
   document.getElementById("specclose").addEventListener("click", closeSpec);
 
