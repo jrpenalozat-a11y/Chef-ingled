@@ -419,6 +419,10 @@
   }
   .call-btn button svg { width: 34px; height: 34px; }
   .call-no { background: #e0433a; }
+  .call-spk { background: rgba(255,255,255,.14); }
+  .call-spk[aria-pressed="true"] { background: #f2ecec; }
+  .call-spk[aria-pressed="true"] svg path { fill: #111; }
+  .call-hint { margin: 0; font-size: .95rem; color: #b9adb3; animation: blink 1.6s steps(2) infinite; }
   .call-yes { background: #2fbf71; animation: nudge 1.3s ease-in-out infinite; }
   @keyframes nudge { 50% { transform: translateY(-6px); } }
 
@@ -472,7 +476,9 @@
     <div class="call-btn"><button type="button" id="callNo" class="call-no" aria-label="Rechazar"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" transform="rotate(135 12 12)" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg></button>Rechazar</div>
     <div class="call-btn"><button type="button" id="callYes" class="call-yes" aria-label="Contestar"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg></button>Contestar</div>
   </div>
+  <p class="call-hint" id="callHint" hidden>Acerca el teléfono a tu oído</p>
   <div class="call-btns" id="callEndWrap" hidden>
+    <div class="call-btn"><button type="button" id="callSpk" class="call-spk" aria-label="Altavoz" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg></button>Altavoz</div>
     <div class="call-btn"><button type="button" id="callEnd" class="call-no" aria-label="Colgar"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" transform="rotate(135 12 12)" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg></button>Colgar</div>
   </div>
 </div>
@@ -517,6 +523,8 @@
         <dt>Vivos</dt><dd id="rlive">—</dd>
         <dt>Presencias</dt><dd id="rghosts" class="spirit">—</dd>
         <dt>Nombre</dt><dd id="rname" class="spirit">—</dd>
+        <dt>Tipo</dt><dd id="rtype" class="spirit">—</dd>
+        <dt>Murió</dt><dd id="ryear">—</dd>
         <dt>Distancia</dt><dd id="rdist">—</dd>
         <dt>Rumbo</dt><dd id="rbear">—</dd>
       </dl>
@@ -601,7 +609,7 @@
       <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
       <li>Respuesta de sí o no: toca una vez la palabra «Sí» o «No» del tablero. Parpadea un instante y la próxima respuesta será esa. Toca de nuevo la misma palabra para cancelar. Esto tiene prioridad sobre todo lo demás.</li>
       <li>Con el sonido encendido, el espíritu dice la respuesta en voz alta con voz de ultratumba.</li>
-      <li>Llamada fantasma: al pulsar «Cerrar sesión» la pantalla se pone negra como si la app se apagara. A los 8–14 segundos entra una llamada de un número privado. Si bloquean el teléfono o cierran la app, la llamada entra apenas vuelvan a abrirla. Al contestar se oye estática y respiración, y el espíritu dice la respuesta con su voz (la secreta si la escribiste antes de cerrar). Si la rechazan, vuelve a sonar; a la segunda se contesta sola. Para salir de la pantalla negra sin esperar, mantenla apretada 3 segundos.</li>
+      <li>Llamada fantasma: al pulsar «Cerrar sesión» la pantalla se pone negra como si la app se apagara. A los 8–14 segundos entra una llamada de un número privado. Si bloquean el teléfono o cierran la app, la llamada entra apenas vuelvan a abrirla. Al contestar suena bajito por el auricular, con sonido de teléfono (hay que acercarlo al oído) y al final grita a todo volumen; con el botón «Altavoz» se escucha fuerte para todos. Se oye estática y respiración, y el espíritu dice la respuesta con su voz (la secreta si la escribiste antes de cerrar). Si la rechazan, vuelve a sonar; a la segunda se contesta sola. Para salir de la pantalla negra sin esperar, mantenla apretada 3 segundos.</li>
       <li>Cámara espectral: pulsa «Tomar foto» o «Grabar video» (la cámara se abre dentro de la app con visión nocturna; graba hasta 8 segundos) o toma una foto, apuntando a un rincón oscuro. En el video la luz baja, aparece una figura que se acerca y al final un rostro salta a la pantalla. Aparece una figura en la zona más oscura y al final se escribe y se lee el mensaje. Si escribiste una respuesta secreta con los puntos, el mensaje es esa; si no, una frase evasiva (con nombres de los presentes si los pusiste en el radar).</li>
       <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Escribe los nombres de los presentes separados por coma (o solo cuántos son), pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada uno. Con nombres, el espíritu los menciona en sus respuestas y dice junto a quién está. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
@@ -866,7 +874,10 @@
     if (forced) { const t = forced; forced = null; return { text: t, kind: Math.random() < .5 ? "omen" : "refuse" }; }
     if (secret) return { text: secret, kind: "true" };
     const names = living.filter(b => b.name).map(b => b.name);
-    if (names.length && Math.random() < .5) {
+    const cs = currentSpirit(), r = Math.random();
+    // casi la mitad de las veces habla con su propia voz: amenaza si es demonio, pide ayuda si es alma
+    if (r < .45) return { text: drawLine(linesOf(cs)), kind: cs.demon ? (Math.random() < .6 ? "omen" : "refuse") : "refuse" };
+    if (names.length && r < .7) {
       return { text: pick(PERSONAL).replace("{n}", pick(names)), kind: Math.random() < .5 ? "omen" : "refuse" };
     }
     return { text: nextEvasive(), kind: Math.random() < .4 ? "omen" : "refuse" };
@@ -948,11 +959,32 @@
   }
   /* ---------- banco de sonidos de terror (todo sintetizado) ---------- */
   let master = null, reverb = null, noiseBuf = null, ambientTimer = null;
+  // salida: normal, por el auricular (bajito, sonido de teléfono) o en altavoz
+  let phoneHP = null, phoneLP = null, phoneGain = null, phoneMode = "normal";
+  function setPhoneMode(mode) {
+    if (!ctx) return;
+    dest();
+    phoneMode = mode;
+    const t = ctx.currentTime;
+    if (mode === "ear") {
+      phoneHP.frequency.setTargetAtTime(320, t, .05); phoneLP.frequency.setTargetAtTime(3300, t, .05);
+      phoneGain.gain.setTargetAtTime(.3, t, .08);
+    } else if (mode === "speaker") {
+      phoneHP.frequency.setTargetAtTime(160, t, .05); phoneLP.frequency.setTargetAtTime(6500, t, .05);
+      phoneGain.gain.setTargetAtTime(1.35, t, .08);
+    } else {
+      phoneHP.frequency.setTargetAtTime(10, t, .05); phoneLP.frequency.setTargetAtTime(20000, t, .05);
+      phoneGain.gain.setTargetAtTime(1, t, .08);
+    }
+  }
   function dest() {
     if (!master) {
       master = ctx.createDynamicsCompressor();
       master.threshold.value = -14; master.ratio.value = 4;
-      master.connect(ctx.destination);
+      phoneHP = ctx.createBiquadFilter(); phoneHP.type = "highpass"; phoneHP.frequency.value = 10;
+      phoneLP = ctx.createBiquadFilter(); phoneLP.type = "lowpass"; phoneLP.frequency.value = 20000;
+      phoneGain = ctx.createGain(); phoneGain.gain.value = 1;
+      master.connect(phoneHP); phoneHP.connect(phoneLP); phoneLP.connect(phoneGain); phoneGain.connect(ctx.destination);
       // sala grande: respuesta de impulso de ruido que se apaga
       const len = ctx.sampleRate * 3.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
       for (let ch = 0; ch < 2; ch++) {
@@ -1333,14 +1365,58 @@
     if (!ab) return null;
     return await new Promise((res, rej) => ctx.decodeAudioData(ab.slice ? ab.slice(0) : ab, res, rej)).catch(() => null);
   }
+  // alma en pena: voz humana, cansada, temblorosa y con eco de pasillo
+  async function soulSpeak(text, sp) {
+    const M = await loadMeSpeak();
+    const c = live();
+    if (!M || !c) return false;
+    const t = text.toLowerCase(), fem = sp && sp.g === "f", kid = sp && sp.child;
+    const [voiceBuf, whisperBuf] = await Promise.all([
+      kid ? synth(M, t, { variant: "f5", pitch: fem ? 85 : 72, speed: 105, wordgap: 6, amplitude: 120 })
+          : synth(M, t, { variant: fem ? "f2" : "m1", pitch: fem ? 38 : 28, speed: 100, wordgap: 8, amplitude: 120 }),
+      synth(M, t, { variant: "whisperf", pitch: kid ? 70 : fem ? 30 : 10, speed: kid ? 105 : 100, wordgap: 8, amplitude: 110 }),
+    ]);
+    if (!voiceBuf) return false;
+    const t0 = c.currentTime + .05;
+    const out = voice(0, 1.1);
+    const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 140;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 5200;
+    // temblor en la voz
+    const trem = c.createGain(); trem.gain.value = .8;
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 5.5; lg.gain.value = .22;
+    lfo.connect(lg); lg.connect(trem.gain); lfo.start(t0);
+    // eco que se repite y se apaga
+    const dl = c.createDelay(1); dl.delayTime.value = .32;
+    const fb = c.createGain(); fb.gain.value = .32;
+    const echo = c.createGain(); echo.gain.value = .4;
+    hp.connect(lp); lp.connect(trem); trem.connect(out);
+    trem.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(echo); echo.connect(out);
+    const rate = kid ? 1.06 : .92; // los niños suenan más agudos
+    const src = c.createBufferSource(); src.buffer = voiceBuf; src.playbackRate.value = rate;
+    src.connect(hp); src.start(t0);
+    let dur = voiceBuf.duration / rate;
+    if (whisperBuf) {
+      [-.7, .7].forEach((pan, i) => {
+        const w = c.createBufferSource(); w.buffer = whisperBuf; w.playbackRate.value = rate;
+        const wh = c.createBiquadFilter(); wh.type = "highpass"; wh.frequency.value = 900;
+        const g = c.createGain(); g.gain.value = .22;
+        w.connect(wh); wh.connect(g); g.connect(voice(pan, 1));
+        w.start(t0 + .06 + i * .12);
+      });
+    }
+    lfo.stop(t0 + dur + 2);
+    if (kid && Math.random() < .5) setTimeout(() => SFX.risa(), dur * 1000 + 600); // una risita al terminar
+    return true;
+  }
+
   async function demonSpeak(text) {
     const M = await loadMeSpeak();
     const c = live();
     if (!M || !c) return false;
     const t = text.toLowerCase();
     const [voiceBuf, whisperBuf] = await Promise.all([
-      synth(M, t, { variant: "m3", pitch: 0, speed: 112, wordgap: 6, amplitude: 120 }),
-      synth(M, t, { variant: "whisperf", pitch: 0, speed: 112, wordgap: 6, amplitude: 110 }),
+      synth(M, t, { variant: "m3", pitch: 0, speed: 108, wordgap: 6, amplitude: 125 }),
+      synth(M, t, { variant: "whisperf", pitch: 0, speed: 108, wordgap: 6, amplitude: 110 }),
     ]);
     if (!voiceBuf) return false;
     const t0 = c.currentTime + .05;
@@ -1355,7 +1431,7 @@
     // gruñido: modulación en anillo con una onda lenta, mezclada con la voz limpia
     const ring = c.createGain(); ring.gain.value = 0;
     const rOsc = c.createOscillator(); rOsc.frequency.value = 38; rOsc.connect(ring.gain);
-    const ringMix = c.createGain(); ringMix.gain.value = .18; ring.connect(ringMix); ringMix.connect(bus);
+    const ringMix = c.createGain(); ringMix.gain.value = .26; ring.connect(ringMix); ringMix.connect(bus);
     rOsc.start(t0);
     const layer = (buf, rate, gain, drive) => {
       const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
@@ -1364,8 +1440,8 @@
       src.start(t0);
       return buf.duration / rate;
     };
-    const d1 = layer(voiceBuf, .76, 1, 2);     // voz principal, grave pero entendible
-    const d2 = layer(voiceBuf, .7, .28, 6);    // segunda voz más grave, de fondo
+    const d1 = layer(voiceBuf, .7, 1, 3);      // voz principal: muy grave pero entendible
+    const d2 = layer(voiceBuf, .6, .34, 10);   // segunda voz aún más grave, de fondo
     let dur = Math.max(d1, d2);
     if (whisperBuf) {
       // susurro que acompaña, abierto hacia los lados y con mucho eco
@@ -1379,14 +1455,17 @@
       });
     }
     rOsc.stop(t0 + dur + .5);
-    // un retumbo debajo de todo
-    SFX.retumbo();
+    // un retumbo y un gruñido debajo de todo
+    SFX.retumbo(); SFX.grunido();
     return true;
   }
 
-  function speak(text) {
+  // habla con la voz del espíritu indicado (o el actual): demonio o alma en pena
+  function speak(text, who) {
     if (!soundOn || !text) return;
-    demonSpeak(text).then(ok => { if (!ok) speakBrowser(text); }).catch(() => speakBrowser(text));
+    const sp = typeof who === "string" ? (byName(who) || currentSpirit()) : (who || currentSpirit());
+    const run = sp && !sp.demon ? soulSpeak(text, sp) : demonSpeak(text);
+    run.then(ok => { if (!ok) speakBrowser(text); }).catch(() => speakBrowser(text));
   }
 
   function speakBrowser(text) {
@@ -1567,6 +1646,7 @@
     await sleep(900);
     bye.el.classList.add("lit");
     if (r.kind !== "refuse") scare();
+    else if (!currentSpirit().demon && Math.random() < .6) SFX.llanto(); // el alma llora al irse
     else SFX[pick(["cajaDeMusica", "risa", "campana", "golpes", "lamento"])]();
     await sleep(700);
     bye.el.classList.remove("lit");
@@ -1596,8 +1676,64 @@
   const rname = document.getElementById("rname");
   const rdist = document.getElementById("rdist");
   const rbear = document.getElementById("rbear");
+  const rtype = document.getElementById("rtype"), ryear = document.getElementById("ryear");
 
-  const SPIRITS = ["Eleonora", "Tomasito", "Hermana Clara", "Don Aurelio", "Rosalía", "Matías", "Ignacia", "Amelia", "Fermín", "Leonor"];
+  // 30 almas en pena adultas y 8 niños, con nombres antiguos y año de muerte, y 12 demonios
+  const SPIRITS = [
+    ["Eleonora", "f", 1893], ["Ermelinda", "f", 1871], ["Clotilde", "f", 1902], ["Rosalía", "f", 1888], ["Amelia", "f", 1919],
+    ["Leonor", "f", 1864], ["Ignacia", "f", 1897], ["Brígida", "f", 1856], ["Aurora", "f", 1924], ["Casilda", "f", 1879],
+    ["Filomena", "f", 1885], ["Genoveva", "f", 1908], ["Inés", "f", 1847], ["Josefa", "f", 1862], ["Mercedes", "f", 1931],
+    ["Úrsula", "f", 1850], ["Victoria", "f", 1916], ["Hermana Clara", "f", 1896],
+    ["Aurelio", "m", 1881], ["Fermín", "m", 1905], ["Matías", "m", 1921], ["Anselmo", "m", 1869], ["Bartolomé", "m", 1853],
+    ["Damián", "m", 1912], ["Florencio", "m", 1898], ["Gaspar", "m", 1844], ["Ildefonso", "m", 1883], ["Leandro", "m", 1909],
+    ["Nicanor", "m", 1866], ["Teodoro", "m", 1901],
+  ].map(([name, g, year]) => ({ name, g, year, demon: false, child: false })).concat(
+    [["Tomasito", "m", 1927, 7], ["Juanito", "m", 1899, 6], ["Pepito", "m", 1921, 8], ["Luisito", "m", 1903, 5],
+     ["Rosita", "f", 1910, 6], ["Marianita", "f", 1933, 7], ["Carmencita", "f", 1888, 9], ["Anita", "f", 1915, 5]]
+      .map(([name, g, year, age]) => ({ name, g, year, age, demon: false, child: true }))
+  ).concat(
+    ["Azazel", "Belial", "Asmodeo", "Astaroth", "Baal", "Belcebú", "Leviatán", "Mammón", "Moloch", "Abadón", "Lilith", "Paimon"]
+      .map(name => ({ name, g: name === "Lilith" ? "f" : "m", year: null, demon: true, child: false }))
+  );
+  const byName = n => SPIRITS.find(x => x.name === n) || null;
+  // el espíritu de la sesión: responde en la tabla aunque el radar todavía no lo haya detectado
+  let sessionSpirit = pick(SPIRITS);
+  function currentSpirit() { return (spirit && spirit.info) || sessionSpirit; }
+
+  // lo que dicen los demonios: fuerte, directo y claro
+  const DEMON_LINES = [
+    "Tu alma me pertenece", "Arderás conmigo", "Esta casa es mía", "Nadie los va a salvar", "Soy legión",
+    "Me llamaron y ya estoy aquí", "Voy a entrar en ti", "Rezar no les sirve", "Veo todos tus pecados", "El fuego los espera",
+    "Arrodíllate ante mí", "Ninguno saldrá de aquí", "Tu sangre me llama", "Yo no me iré nunca", "Me alimento de tu miedo",
+    "Aquí no hay Dios", "Firmaste con tu nombre", "Te arrastraré conmigo", "Esta noche es mía", "Mírame a los ojos",
+  ];
+  // lo que dicen las almas en pena: tristes, perdidas, piden ayuda
+  const SOUL_LINES = [
+    "Ayúdenme a descansar", "No encuentro la salida", "Tengo frío, ayúdenme", "Quiero volver a casa", "¿Dónde está mi madre?",
+    "Recen por mí", "No sé dónde estoy", "Díganle a mi familia que la extraño", "Enciendan una vela por mí", "No me dejen aquí",
+    "Llevo tanto tiempo esperando", "Déjenme ir", "Ya no recuerdo mi cara", "Ayúdenme, por favor", "Tengo tanto sueño",
+    "Quiero ver la luz", "Nadie me escucha", "Perdónenme", "Libérenme de esta casa", "Me duele todavía",
+  ];
+  // lo que dicen los niños: juegos, miedo y soledad
+  const CHILD_LINES = [
+    "¿Quieres jugar conmigo?", "No encuentro a mi mamá", "Cuenta hasta diez y búscame", "Me escondí debajo de tu cama",
+    "¿Por qué nadie juega conmigo?", "El señor de negro me da miedo", "Quiero mi muñeca", "Shh, él nos está escuchando",
+    "Ven a jugar a la escalera", "Me duele la garganta de tanto llorar", "Tengo frío, ¿me prestas tu chaleco?",
+    "Te veo, te veo", "Mi mamá dijo que no hablara con ustedes", "No apagues la luz, por favor",
+    "¿Ya es de noche otra vez?", "Quiero irme a mi casa",
+  ];
+  const linesOf = sp => sp && sp.demon ? DEMON_LINES : sp && sp.child ? CHILD_LINES : SOUL_LINES;
+  // cada lista se baraja y no repite frase hasta agotarla
+  const lineBags = new Map();
+  function drawLine(list) {
+    let bag = lineBags.get(list);
+    if (!bag || !bag.length) {
+      bag = list.slice();
+      for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+      lineBags.set(list, bag);
+    }
+    return bag.pop();
+  }
   const RANGE_M = 6, PERIOD = 3.2; // metros de alcance, segundos por vuelta
   const TAU = Math.PI * 2;
   let sweep = 0, last = performance.now();
@@ -1692,7 +1828,7 @@
     scanning = false; living = []; spirit = null; placing = null;
     calib.hidden = true; placeBox.hidden = true;
     scopebox.classList.remove("placing");
-    [rlive, rghosts, rname, rdist, rbear].forEach(el => el.textContent = "—");
+    [rlive, rghosts, rname, rdist, rbear, rtype, ryear].forEach(el => el.textContent = "—");
     setStatus("Escaneando… sin lecturas. Alcance 6 m.");
   }
 
@@ -1709,11 +1845,11 @@
   }
 
   function summonSpirit() {
-    const name = pick(SPIRITS);
-    spirit = { name, a: rand(0, TAU), r: rand(.75, .95), alpha: 0, seen: false, visible: true };
+    const info = sessionSpirit; // el mismo que ya estaba respondiendo en la tabla
+    spirit = { name: info.name, info, a: rand(0, TAU), r: rand(.75, .95), alpha: 0, seen: false, visible: true };
     rghosts.textContent = "1";
-    setStatus("Anomalía detectada en el borde del alcance.", true);
-    SFX.estatica(); SFX.lamento();
+    if (info.demon) { setStatus("Entidad hostil detectada. No es humana.", true); SFX.estatica(); SFX.grunido(); SFX.retumbo(); }
+    else { setStatus("Anomalía detectada en el borde del alcance.", true); SFX.estatica(); SFX.lamento(); }
     later(wander, rand(5000, 8000));
   }
 
@@ -1749,11 +1885,24 @@
   }
 
   async function introduce(name) {
+    const info = byName(name) || currentSpirit();
     const entry = document.createElement("p");
     const aa = document.createElement("span"); aa.textContent = name.toUpperCase();
-    entry.append("El radar detecta una presencia. Dice llamarse ", aa, ".");
-    SFX.campana();
-    speak("me llamo " + name);
+    if (info.demon) {
+      entry.append("El radar detecta una entidad demoníaca: ", aa, ".");
+      SFX.grunido();
+      speak("Soy " + name + ". " + pick(["Tu alma es mía", "Me llamaron", "Ya estoy aquí", "Nadie saldrá de aquí"]), info);
+    } else {
+      if (info.child) {
+        entry.append("El radar detecta " + (info.g === "f" ? "una niña" : "un niño") + " de " + info.age + " años. Dice llamarse ", aa, ", murió en " + info.year + ".");
+        SFX.cajaDeMusica();
+        speak("Me llamo " + name + ". " + pick(["¿Quieres jugar conmigo?", "No encuentro a mi mamá", "Tengo miedo"]), info);
+      } else {
+        entry.append("El radar detecta un alma en pena. Dice llamarse ", aa, ", murió en " + info.year + ".");
+        SFX.campana();
+        speak("Me llamo " + name + ". " + pick(["Ayúdenme a descansar", "No encuentro la salida", "Tengo frío"]), info);
+      }
+    }
     logEl.prepend(entry);
     if (busy) return;
     busy = true; askBtn.disabled = true; askBtn.textContent = "El espíritu escribe…";
@@ -1839,6 +1988,8 @@
         ping(spirit.r < .2 ? 1320 : 880);
         const m = spirit.r * RANGE_M;
         rname.textContent = spirit.name;
+        rtype.textContent = spirit.info.demon ? "Demonio" : spirit.info.child ? (spirit.info.g === "f" ? "Niña" : "Niño") + ", " + spirit.info.age + " años" : "Alma en pena";
+        ryear.textContent = spirit.info.year ? "† " + spirit.info.year : "—";
         rdist.textContent = m.toFixed(1).replace(".", ",") + " m";
         rbear.textContent = String(Math.round(spirit.a * 180 / Math.PI)).padStart(3, "0") + "°";
         if (!spirit.seen) { spirit.seen = true; introduce(spirit.name); }
@@ -1846,8 +1997,9 @@
       spirit.alpha = Math.max(0, spirit.alpha - fade * .8);
       const [x, y] = xy(spirit);
       const a = spirit.alpha * (Math.random() < .12 ? .4 : 1);
-      g2.shadowColor = "rgba(200,57,45,1)"; g2.shadowBlur = 18 * a;
-      g2.fillStyle = `rgba(230,70,55,${a})`;
+      const demon = spirit.info.demon;
+      g2.shadowColor = demon ? "rgba(200,57,45,1)" : "rgba(170,215,255,1)"; g2.shadowBlur = (demon ? 22 : 16) * a;
+      g2.fillStyle = demon ? `rgba(230,70,55,${a})` : `rgba(205,230,255,${a})`;
       g2.beginPath(); g2.arc(x, y, Math.max(5, w / 55), 0, TAU); g2.fill();
       g2.shadowBlur = 0;
       // nombre junto al punto: queda visible entre barridos una vez identificado
@@ -1863,16 +2015,16 @@
         const lx = tw + 12 > 2 * hc ? c - tw / 2 : Math.min(Math.max(x - tw / 2, c - hc + 6), c + hc - tw - 6);
         g2.fillStyle = `rgba(10,4,5,${la * .75})`;
         g2.fillRect(lx - 5, ly - fh, tw + 10, fh + 6);
-        g2.strokeStyle = `rgba(200,57,45,${la * .8})`; g2.lineWidth = 1;
+        g2.strokeStyle = demon ? `rgba(200,57,45,${la * .8})` : `rgba(170,215,255,${la * .7})`; g2.lineWidth = 1;
         g2.strokeRect(lx - 5, ly - fh, tw + 10, fh + 6);
-        g2.shadowColor = "rgba(200,57,45,1)"; g2.shadowBlur = 8 * la;
-        g2.fillStyle = `rgba(255,140,120,${la})`;
+        g2.shadowColor = demon ? "rgba(200,57,45,1)" : "rgba(150,200,255,1)"; g2.shadowBlur = 8 * la;
+        g2.fillStyle = demon ? `rgba(255,140,120,${la})` : `rgba(215,235,255,${la})`;
         g2.fillText(label, lx, ly);
         g2.shadowBlur = 0;
       }
       // rótulo fijo en la parte baja de la pantalla del radar
       if (spirit.seen) {
-        const txt = spirit.visible ? "PRESENCIA: " + spirit.name.toUpperCase() : "SEÑAL PERDIDA";
+        const txt = spirit.visible ? (demon ? "DEMONIO: " : "ALMA: ") + spirit.name.toUpperCase() : "SEÑAL PERDIDA";
         g2.font = Math.max(10, w / 30) + "px 'Courier Prime', monospace";
         const bw = g2.measureText(txt).width;
         const blink = Math.floor(now / 600) % 2 ? 1 : .55;
@@ -2085,7 +2237,12 @@
     return { light, dark, eyes, w: S, h: S, lightFirst: true };
   }
 
-  function makeSpecter(h) { return Math.random() < .55 ? makeLady(h) : makeShade(h); }
+  function makeSpecter(h) {
+    const cs = currentSpirit();
+    if (cs.child) return makeLady(Math.round(h * .62)); // figura de la altura de un niño
+    if (cs.demon) return Math.random() < .8 ? makeShade(h) : makeLady(h);
+    return Math.random() < (cs.g === "f" ? .85 : .45) ? makeLady(h) : makeShade(h);
+  }
 
   // la dama y el rostro pintan primero la piel y encima el pelo y las cuencas;
   // la sombra pinta primero su negrura y encima el brillo de los ojos
@@ -2154,6 +2311,7 @@
     const { secret } = derive(keys);
     if (secret) return secret;
     const names = living.filter(b => b.name).map(b => b.name);
+    if (Math.random() < .5) return drawLine(linesOf(currentSpirit()));
     if (names.length && Math.random() < .6) return pick(PERSONAL).replace("{n}", pick(names));
     return nextEvasive();
   }
@@ -2546,6 +2704,14 @@
   const callWave = document.getElementById("callWave"), callMsg = document.getElementById("callMsg");
   const callBtns = document.getElementById("callBtns"), callEndWrap = document.getElementById("callEndWrap");
   const callOnClose = document.getElementById("callOnClose");
+  const callSpk = document.getElementById("callSpk"), callHint = document.getElementById("callHint");
+  // al contestar suena por el auricular (bajito); el botón Altavoz lo pasa a volumen alto
+  function setSpeaker(on) {
+    callSpk.setAttribute("aria-pressed", String(on));
+    callHint.hidden = on;
+    setPhoneMode(on ? "speaker" : "ear");
+  }
+  callSpk.addEventListener("click", () => setSpeaker(callSpk.getAttribute("aria-pressed") !== "true"));
   let call = null, pendingCall = null, wakeLock = null, callRejects = 0;
 
   async function keepAwake() { try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
@@ -2588,7 +2754,7 @@
   }
   function scheduleCall(ms, msg, ghost) {
     clearTimeout(pendingCall);
-    callDue = { at: Date.now() + ms, msg: msg || spectralMessage(), ghost: ghost || (spirit && spirit.name) || "" };
+    callDue = { at: Date.now() + ms, msg: msg || spectralMessage(), ghost: ghost || currentSpirit().name };
     saveDue();
     pendingCall = setTimeout(fireDue, ms);
   }
@@ -2620,7 +2786,7 @@
   }
   function incomingCall(msg, ghost) {
     if (call) return;
-    call = { msg: msg || spectralMessage(), ghost: ghost || (spirit && spirit.name) || "", cycles: 0, answered: false };
+    call = { msg: msg || spectralMessage(), ghost: ghost || currentSpirit().name, cycles: 0, answered: false };
     blackout.hidden = true;
     callEl.hidden = false; callEl.className = "call ringing";
     callLabel.textContent = "Llamada entrante…"; callName.textContent = "Desconocido"; callNum.textContent = "Número privado";
@@ -2658,6 +2824,7 @@
     callEl.className = "call active";
     callLabel.textContent = auto ? "La llamada se contestó sola" : "En llamada";
     callBtns.hidden = true; callEndWrap.hidden = false; callWave.hidden = false;
+    setSpeaker(false);
     const t0 = Date.now();
     cur.timer = setInterval(() => {
       const s = Math.floor((Date.now() - t0) / 1000);
@@ -2670,7 +2837,7 @@
     SFX.respiracion(); setTimeout(() => SFX.gritoLejano(), 900);
     await sleep(2600); if (call !== cur) return;
     if (cur.ghost) callName.textContent = cur.ghost; // el número desconocido revela su nombre
-    speak(cur.msg);
+    speak(cur.msg, cur.ghost);
     cur.spoke = true;
     // el mensaje se escribe en pantalla mientras habla
     for (let i = 1; i <= cur.msg.length; i++) {
@@ -2679,7 +2846,10 @@
       await sleep(110);
     }
     await sleep(2500 + cur.msg.length * 60); if (call !== cur) return;
-    SFX.risa();
+    // si tiene el teléfono en la oreja, el final es un grito a todo volumen
+    const ear = phoneMode === "ear";
+    setPhoneMode("normal");
+    if (ear) { scream(); SFX.chirrido(); } else SFX.risa();
     await sleep(1400); if (call !== cur) return;
     endCall(true);
   }
@@ -2688,12 +2858,14 @@
     // si cuelgan antes de oír el mensaje, vuelve a llamar
     if (!finished && !cur.spoke) {
       clearInterval(cur.timer); cur.stopNoise && cur.stopNoise();
+      setPhoneMode("normal"); callHint.hidden = true;
       call = null; callEl.hidden = true; blackout.hidden = false;
       callRejects = Math.max(callRejects, 1);
       setTimeout(() => { incomingCall(cur.msg, cur.ghost); answerCall(true); }, 3000);
       return;
     }
     clearInterval(cur.timer); cur.stopNoise && cur.stopNoise();
+    setPhoneMode("normal"); callHint.hidden = true;
     callLabel.textContent = "Llamada finalizada";
     callWave.hidden = true; callEndWrap.hidden = true;
     setTimeout(() => {
@@ -2760,7 +2932,7 @@
       sayBag = SAYINGS.slice();
       for (let i = sayBag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [sayBag[i], sayBag[j]] = [sayBag[j], sayBag[i]]; }
     }
-    let t = sayBag.pop();
+    let t = Math.random() < .5 ? drawLine(linesOf(currentSpirit())) : sayBag.pop();
     // a veces se dirige a alguien presente por su nombre
     const names = living.filter(b => b.name).map(b => b.name);
     if (names.length && Math.random() < .3) t = pick(names) + ". " + t;
@@ -2788,7 +2960,8 @@
 
   document.getElementById("reset").addEventListener("click", () => {
     // lo que dirá la llamada se decide antes de borrar todo
-    const callText = spectralMessage(), ghost = spirit && spirit.name;
+    const callText = spectralMessage(), ghost = currentSpirit().name;
+    sessionSpirit = pick(SPIRITS); // la próxima sesión la visita otro espíritu
     stopRadar();
     leaveSeance();
     forced = null;
