@@ -171,6 +171,11 @@
     color: #8a6a4a; opacity: .7;
   }
   .sun { left: 5%; } .moon { right: 5%; }
+  /* el sol abre el panel secreto con pulsación larga: área de toque amplia y sin menú del sistema */
+  .sun { padding: 10px; margin: -10px; cursor: default; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; z-index: 2; }
+  .glyph.word { cursor: default; -webkit-touch-callout: none; padding: 6px; }
+  .glyph.tap { color: #fff1d8; text-shadow: 0 0 6px var(--candle); }
+  details[hidden] { display: none; }
 
   .planchette {
     position: absolute;
@@ -248,6 +253,7 @@
   .stats dd.spirit { color: var(--ember); }
   .calib { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--phos-dim); background: rgba(6,13,8,.8); }
   .calib[hidden] { display: none; }
+  .calib input#names { width: 100%; font-size: 1rem; }
   .calib label { color: var(--phos); }
   .calib-row { display: flex; gap: 8px; }
   .calib input {
@@ -369,7 +375,7 @@
   </header>
 
   <div class="board" id="board" aria-label="Tablero de espiritismo">
-    <span class="sun" aria-hidden="true">☼</span>
+    <span class="sun" id="sun" aria-hidden="true">☼</span>
     <span class="moon" aria-hidden="true">☾</span>
     <div class="planchette" id="planchette" aria-hidden="true">
       <svg viewBox="0 0 100 115">
@@ -404,7 +410,9 @@
       </dl>
       <button type="button" class="scanbtn" id="scanbtn">Escanear el sector</button>
       <form class="calib" id="calib" hidden>
-        <label for="people">Personas vivas en la habitación</label>
+        <label for="names">Nombres de los presentes (opcional)</label>
+        <input type="text" id="names" placeholder="Camila, Pedro, Tía Rosa" autocomplete="off" autocorrect="off" spellcheck="false">
+        <label for="people">O solo cuántas personas hay</label>
         <div class="calib-row">
           <input type="number" id="people" min="1" max="12" inputmode="numeric" value="3">
           <button type="submit">Ubicar en el radar</button>
@@ -441,15 +449,18 @@
 
   <div class="log" id="log"></div>
 
-  <details>
-    <summary>Solo para el médium (no lo muestres)</summary>
+  <details id="medium" hidden>
+    <summary>Panel del médium</summary>
     <ol>
+      <li>Este panel está escondido. Para abrirlo o cerrarlo, mantén apretado el sol ☼ de la esquina del tablero durante 2 segundos.</li>
       <li>En el campo de petición, escribe primero un punto <code>.</code> Nadie lo verá: en pantalla aparecerá la petición normal.</li>
       <li>Sin detenerte, escribe la respuesta secreta. Por ejemplo <code>.Tu abuela.</code> Cada letra que tecleas se transforma en la siguiente letra de la petición.</li>
       <li>Escribe otro punto <code>.</code> para cerrar el secreto y sigue tecleando hasta completar la petición.</li>
       <li>Deja que tu víctima escriba la pregunta. El espíritu deletreará tu respuesta en la tabla.</li>
       <li>Sin respuesta secreta, el espíritu esquiva la pregunta con una de sus 55 frases al azar (algunas exigen hablar con Ricardo).</li>
-      <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Anota cuántas personas hay en la habitación, pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada una. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
+      <li>Respuesta de sí o no: toca una vez la palabra «Sí» o «No» del tablero. Parpadea un instante y la próxima respuesta será esa. Toca de nuevo la misma palabra para cancelar. Esto tiene prioridad sobre todo lo demás.</li>
+      <li>Con el sonido encendido, el espíritu dice la respuesta en voz alta con voz de ultratumba.</li>
+      <li>Radar: pulsa «Escanear el sector» (o escribe <code>..</code> en la pregunta). Escribe los nombres de los presentes separados por coma (o solo cuántos son), pulsa «Ubicar en el radar» y toca la pantalla del radar donde está cada uno. Con nombres, el espíritu los menciona en sus respuestas y dice junto a quién está. Tú eres el centro; arriba es hacia donde apunta el teléfono. Al rato aparece un espíritu que cambia de posición y dice su nombre en la tabla.</li>
     </ol>
     <p class="sb-title">Sonidos a mano (tócalos sin que te vean)</p>
     <div class="soundboard" id="soundboard">
@@ -669,11 +680,36 @@
     return bag.pop();
   }
 
+  // frases con el nombre de alguien presente (se usan si el radar tiene nombres)
+  const PERSONAL = [
+    "{n} no mires atrás",
+    "{n} sabe por qué vine",
+    "{n} tiene algo mío",
+    "Pregúntale a {n}",
+    "Estoy detrás de {n}",
+    "{n} me está escuchando",
+    "{n} no duermas esta noche",
+    "{n} cuenta hasta tres",
+    "{n} ya me vio antes",
+    "Esta noche visito a {n}",
+    "{n} deja la puerta abierta",
+    "Que {n} apague la luz",
+    "{n} no mires el espejo",
+    "Vine por {n}",
+    "{n} sueña conmigo",
+  ];
+  let forced = null; // "SÍ" o "NO" elegido en secreto tocando el tablero
+
   function decide() {
     const q = question.value.trim();
     const { secret } = derive(keys);
     if (!q) return { text: "Pregunta algo", kind: "refuse" };
+    if (forced) { const t = forced; forced = null; return { text: t, kind: Math.random() < .5 ? "omen" : "refuse" }; }
     if (secret) return { text: secret, kind: "true" };
+    const names = living.filter(b => b.name).map(b => b.name);
+    if (names.length && Math.random() < .5) {
+      return { text: pick(PERSONAL).replace("{n}", pick(names)), kind: Math.random() < .5 ? "omen" : "refuse" };
+    }
     return { text: nextEvasive(), kind: Math.random() < .4 ? "omen" : "refuse" };
   }
 
@@ -991,6 +1027,24 @@
       }
     },
   };
+  // voz de ultratumba con la síntesis de voz del navegador
+  function speak(text) {
+    if (!soundOn || !window.speechSynthesis || !text) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text.toLowerCase());
+      u.lang = "es-ES";
+      const v = speechSynthesis.getVoices().find(v => /^es/i.test(v.lang));
+      if (v) u.voice = v;
+      u.pitch = .1; u.rate = .55; u.volume = 1;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  // iOS solo deja hablar después de un toque: se desbloquea con una frase muda
+  function unlockSpeech() {
+    if (!window.speechSynthesis) return;
+    try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+  }
   const AMBIENT = ["susurro", "puerta", "golpes", "pasos", "cajaDeMusica", "lamento", "campana", "viento", "respiracion", "grunido", "risa", "rasguno"];
   function ambientLoop() {
     clearTimeout(ambientTimer);
@@ -1004,6 +1058,7 @@
     soundBtn.setAttribute("aria-pressed", String(soundOn));
     soundBtn.textContent = "Sonido: " + (soundOn ? "encendido" : "apagado");
     if (soundOn) {
+      unlockSpeech();
       startDrone();
       clearTimeout(ambientTimer);
       ambientTimer = setTimeout(ambientLoop, 4000);
@@ -1117,11 +1172,12 @@
     e.preventDefault();
     if (busy) return;
     busy = true; askBtn.disabled = true; askBtn.textContent = "El espíritu escribe…";
-    if (soundOn) ensureAudio();
+    if (soundOn) { ensureAudio(); unlockSpeech(); }
     const q = question.value.trim();
     const r = decide();
     await enterSeance();
     const said = await spell(r.text);
+    speak(r.text === "SÍ" ? "sí" : r.text === "NO" ? "no" : r.text);
     const bye = pos["ADIÓS"];
     moveTo(bye, 0);
     await sleep(900);
@@ -1200,9 +1256,9 @@
     setStatus("¿Cuántas personas vivas hay en la habitación?");
   }
 
-  function beginPlacing(n) {
+  function beginPlacing(n, names) {
     calib.hidden = true;
-    placing = { n, list: [] };
+    placing = { n, names, list: [] };
     placeBox.hidden = false;
     scopebox.classList.add("placing");
     updatePlacing();
@@ -1210,7 +1266,8 @@
   }
   function updatePlacing() {
     const k = placing.list.length + 1;
-    placeMsg.textContent = "Toca el radar donde está la persona " + k + " de " + placing.n + ".";
+    const who = placing.names[k - 1] || "la persona " + k;
+    placeMsg.textContent = "Toca el radar donde está " + who + " (" + k + " de " + placing.n + ").";
     setStatus("Ubicando personas vivas… " + placing.list.length + "/" + placing.n);
     rlive.textContent = placing.list.length + "/" + placing.n;
   }
@@ -1229,7 +1286,7 @@
     const r = Math.hypot(dx, dy) / R;
     if (r > 1) return;
     const a = ((Math.atan2(dy, dx) + Math.PI / 2) % TAU + TAU) % TAU;
-    placing.list.push({ a, r });
+    placing.list.push({ a, r, name: placing.names[placing.list.length] || "" });
     ping(660);
     if (placing.list.length >= placing.n) finishPlacing(); else updatePlacing();
   });
@@ -1238,7 +1295,7 @@
   });
   document.getElementById("autoplace").addEventListener("click", () => {
     if (!placing) return;
-    while (placing.list.length < placing.n) placing.list.push({ a: rand(0, TAU), r: rand(.15, .6) });
+    while (placing.list.length < placing.n) placing.list.push({ a: rand(0, TAU), r: rand(.15, .6), name: placing.names[placing.list.length] || "" });
     finishPlacing();
   });
   document.getElementById("scanbtn").addEventListener("click", () => {
@@ -1259,7 +1316,7 @@
     stopRadar();
     scanning = true;
     const n = list.length;
-    living = list.map(p => ({ a: p.a, r: p.r, a0: p.a, r0: p.r, alpha: 0 }));
+    living = list.map(p => ({ a: p.a, r: p.r, a0: p.a, r0: p.r, alpha: 0, name: p.name }));
     rlive.textContent = String(n);
     rghosts.textContent = "0";
     setStatus("Escaneando el sector… " + n + (n === 1 ? " persona viva." : " personas vivas."));
@@ -1287,8 +1344,16 @@
       later(() => { if (spirit) { spirit.visible = true; setStatus("Ha vuelto.", true); } }, rand(4000, 7000));
     } else if (roll < .38) {
       // se acerca al centro: está junto a ti
-      spirit.a = rand(0, TAU); spirit.r = rand(.05, .14);
-      setStatus(spirit.name + " está junto a ti.", true);
+      const named = living.filter(b => b.name);
+      if (named.length && Math.random() < .7) {
+        const t = pick(named);
+        spirit.a = t.a0 + rand(-.18, .18); spirit.r = Math.min(.98, Math.max(.05, t.r0 + rand(-.06, .06)));
+        setStatus(spirit.name + " está junto a " + t.name + ".", true);
+        if (Math.random() < .5) speak("estoy junto a " + t.name);
+      } else {
+        spirit.a = rand(0, TAU); spirit.r = rand(.05, .14);
+        setStatus(spirit.name + " está junto a ti.", true);
+      }
       SFX.respiracion(); SFX.grunido();
       later(scare, PERIOD * 1000);
     } else {
@@ -1304,6 +1369,7 @@
     const aa = document.createElement("span"); aa.textContent = name.toUpperCase();
     entry.append("El radar detecta una presencia. Dice llamarse ", aa, ".");
     SFX.campana();
+    speak("me llamo " + name);
     logEl.prepend(entry);
     if (busy) return;
     busy = true; askBtn.disabled = true; askBtn.textContent = "El espíritu escribe…";
@@ -1357,6 +1423,13 @@
       g2.fillStyle = `rgba(170,240,180,${b.alpha})`;
       g2.shadowColor = "rgba(127,194,140,.9)"; g2.shadowBlur = 10 * b.alpha;
       g2.beginPath(); g2.arc(x, y, Math.max(3, w / 90), 0, TAU); g2.fill();
+      g2.shadowBlur = 0;
+      if (b.name) {
+        g2.font = Math.max(9, w / 34) + "px 'Courier Prime', monospace";
+        g2.fillStyle = `rgba(170,240,180,${Math.max(.35, b.alpha)})`;
+        const tw = g2.measureText(b.name).width;
+        g2.fillText(b.name, Math.min(Math.max(x - tw / 2, c - R * .9), c + R * .9 - tw), y + Math.max(14, w / 26));
+      }
     });
 
     // el que sostiene el teléfono está en el centro
@@ -1372,7 +1445,7 @@
         g2.beginPath(); g2.arc(x, y, Math.max(7, w / 40), 0, TAU); g2.stroke();
         g2.fillStyle = "rgba(170,240,180,1)";
         g2.beginPath(); g2.arc(x, y, Math.max(3, w / 90), 0, TAU); g2.fill();
-        g2.fillText(String(i + 1), x + Math.max(9, w / 34), y - 6);
+        g2.fillText(b.name || String(i + 1), x + Math.max(9, w / 34), y - 6);
       });
     }
 
@@ -1430,9 +1503,10 @@
 
   calib.addEventListener("submit", e => {
     e.preventDefault();
-    const n = Math.max(1, Math.min(12, parseInt(peopleIn.value, 10) || 1));
+    const names = document.getElementById("names").value.split(/[,;\n]+/).map(x => x.trim()).filter(Boolean).slice(0, 12);
+    const n = names.length || Math.max(1, Math.min(12, parseInt(peopleIn.value, 10) || 1));
     if (soundOn) ensureAudio();
-    beginPlacing(n);
+    beginPlacing(n, names);
   });
 
   // disparador secreto: ".." en la pregunta o en cualquier parte de la página
@@ -1451,9 +1525,39 @@
     else lastDot = now;
   });
 
+  /* ---------- gestos secretos del médium ---------- */
+  const medium = document.getElementById("medium");
+  const sun = document.getElementById("sun");
+  let longPress = null;
+  sun.addEventListener("pointerdown", () => {
+    clearTimeout(longPress);
+    longPress = setTimeout(() => {
+      medium.hidden = !medium.hidden;
+      if (!medium.hidden) { medium.open = true; medium.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      if (navigator.vibrate) { try { navigator.vibrate(25); } catch (e) {} }
+    }, 1800);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => sun.addEventListener(ev, () => clearTimeout(longPress)));
+  sun.addEventListener("contextmenu", e => e.preventDefault());
+
+  ["SÍ", "NO"].forEach(k => {
+    const el = pos[k].el;
+    el.addEventListener("contextmenu", e => e.preventDefault());
+    el.addEventListener("click", () => {
+      forced = forced === k ? null : k;
+      // destello mínimo: una vez si queda activo, dos si se cancela
+      const flashes = forced ? 1 : 2;
+      for (let i = 0; i < flashes; i++) {
+        setTimeout(() => el.classList.add("tap"), i * 260);
+        setTimeout(() => el.classList.remove("tap"), i * 260 + 140);
+      }
+    });
+  });
+
   document.getElementById("reset").addEventListener("click", () => {
     stopRadar();
     leaveSeance();
+    forced = null;
     keys = []; render(); question.value = "";
     logEl.textContent = "";
     answerEl.classList.add("idle");
