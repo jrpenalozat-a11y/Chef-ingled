@@ -1,7 +1,7 @@
 <title>El Espíritu Responde</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=IM+Fell+English:ital@0;1&family=Special+Elite&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -10,21 +10,21 @@
     --wood: #2a1a14;
     --wood-hi: #3d261b;
     --bone: #dccfbb;
-    --bone-dim: #8f8272;
+    --bone-dim: #b3a692;
     --blood: #7a0f14;
     --ember: #c8392d;
     --candle: #e3a54e;
-    --display: "UnifrakturCook", "Old English Text MT", "Luminari", serif;
-    --body: "IM Fell English", "Iowan Old Style", "Palatino", Georgia, serif;
-    --type: "Special Elite", "Courier New", ui-monospace, monospace;
+    --display: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+    --body: "Crimson Pro", "Iowan Old Style", "Palatino", Georgia, serif;
+    --type: "Courier Prime", "Courier New", ui-monospace, monospace;
   }
   html, body { min-height: 100%; }
   body {
     background: var(--void);
     color: var(--bone);
     font-family: var(--body);
-    font-size: 17px;
-    line-height: 1.55;
+    font-size: 18px;
+    line-height: 1.6;
     padding-inline: 16px;
     padding-block: 24px 48px;
     overflow-x: hidden;
@@ -63,9 +63,9 @@
   header { text-align: center; display: flex; flex-direction: column; gap: 6px; }
   h1 {
     font-family: var(--display);
-    font-weight: 700;
-    font-size: clamp(2.6rem, 9vw, 4.6rem);
-    line-height: 1;
+    font-weight: 900;
+    font-size: clamp(2.2rem, 8vw, 4rem);
+    line-height: 1.05;
     margin: 0;
     color: var(--bone);
     text-shadow: 0 0 18px rgba(200,57,45,.45), 0 2px 0 var(--blood);
@@ -83,8 +83,9 @@
   .field { display: flex; flex-direction: column; gap: 6px; }
   label {
     font-family: var(--type);
-    font-size: .78rem;
-    letter-spacing: .14em;
+    font-weight: 700;
+    font-size: .85rem;
+    letter-spacing: .12em;
     text-transform: uppercase;
     color: var(--bone-dim);
   }
@@ -94,8 +95,8 @@
     box-sizing: border-box;
     font: inherit;
     font-family: var(--type);
-    font-size: 1.05rem;
-    color: var(--bone);
+    font-size: 1.1rem;
+    color: var(--ink, var(--bone));
     background: rgba(21,16,26,.85);
     border: 1px solid #3a2a2e;
     border-bottom: 2px solid var(--blood);
@@ -136,6 +137,7 @@
   /* ----- tablero ----- */
   .board {
     position: relative;
+    z-index: 0;
     width: 100%; max-width: 100%;
     aspect-ratio: 3 / 2;
     border-radius: 18px / 26px;
@@ -154,13 +156,14 @@
     position: absolute;
     transform: translate(-50%, -50%);
     font-family: var(--display);
-    color: #cdb89a;
-    font-size: clamp(.95rem, 3.6vw, 1.7rem);
+    font-weight: 700;
+    color: #e2d0b0;
+    font-size: clamp(1rem, 3.8vw, 1.75rem);
     line-height: 1;
     text-shadow: 0 1px 0 #000;
     transition: color .25s, text-shadow .25s;
   }
-  .glyph.num { font-family: var(--body); font-size: clamp(.8rem, 2.8vw, 1.25rem); }
+  .glyph.num { font-size: clamp(.85rem, 3vw, 1.3rem); }
   .glyph.word { font-size: clamp(1.1rem, 4.4vw, 2.1rem); }
   .glyph.lit { color: #fff1d8; text-shadow: 0 0 10px var(--candle), 0 0 26px var(--ember); }
   .sun, .moon {
@@ -187,17 +190,20 @@
   .answer {
     min-height: 3.2em;
     text-align: center;
+    position: relative;
     font-family: var(--display);
-    font-size: clamp(1.6rem, 6vw, 2.6rem);
-    letter-spacing: .06em;
-    color: var(--ember);
+    font-weight: 700;
+    font-size: clamp(1.5rem, 6vw, 2.4rem);
+    line-height: 1.25;
+    letter-spacing: .08em;
+    color: #ff5a4a;
     text-shadow: 0 0 16px rgba(200,57,45,.5);
     word-break: break-word;
     display: flex; align-items: center; justify-content: center;
   }
-  .answer.idle { font-family: var(--body); font-style: italic; font-size: 1.05rem; color: var(--bone-dim); text-shadow: none; letter-spacing: 0; }
+  .answer.idle { font-family: var(--body); font-weight: 400; font-style: italic; font-size: 1.15rem; color: var(--bone-dim); text-shadow: none; letter-spacing: 0; }
   .log {
-    font-family: var(--type); font-size: .85rem; color: var(--bone-dim);
+    font-family: var(--type); font-size: .95rem; color: var(--bone-dim);
     border-top: 1px solid #2a1e22; padding-top: 14px;
     display: flex; flex-direction: column; gap: 8px;
   }
@@ -233,11 +239,11 @@
     font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.1;
     color: var(--bone);
   }
-  .status { margin: 0; font-size: .85rem; color: var(--phos); letter-spacing: .06em; min-height: 2.6em; }
+  .status { margin: 0; font-size: .95rem; color: var(--phos); letter-spacing: .06em; min-height: 2.6em; }
   .status.alert { color: var(--ember); animation: blink 1s steps(2) infinite; }
   @keyframes blink { 50% { opacity: .35; } }
-  .stats { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: .85rem; }
-  .stats dt { color: var(--bone-dim); text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; align-self: center; }
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: .95rem; }
+  .stats dt { color: var(--bone-dim); text-transform: uppercase; letter-spacing: .1em; font-size: .8rem; align-self: center; }
   .stats dd { margin: 0; color: var(--bone); font-variant-numeric: tabular-nums; }
   .stats dd.spirit { color: var(--ember); }
   .calib { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--phos-dim); background: rgba(6,13,8,.8); }
@@ -261,10 +267,44 @@
     border: 1px dashed #3a2a2e; padding: 12px 16px; border-radius: 2px;
     background: rgba(7,6,10,.6);
   }
-  summary { cursor: pointer; font-family: var(--type); font-size: .82rem; letter-spacing: .12em; text-transform: uppercase; color: var(--bone-dim); }
+  summary { cursor: pointer; font-family: var(--type); font-weight: 700; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; color: var(--bone-dim); }
   summary:focus-visible { outline: 2px solid var(--candle); outline-offset: 3px; }
   details ol { margin: 12px 0 4px; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; max-width: 62ch; }
   details code { font-family: var(--type); color: var(--candle); }
+
+  /* ----- sombras y ritual ----- */
+  .closing {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(ellipse 75% 60% at 50% 50%, transparent 35%, rgba(0,0,0,.92) 100%);
+    opacity: 0; transition: opacity .6s ease;
+  }
+  body.gust::before { opacity: .45 !important; }
+  .whisper {
+    margin: 0; min-height: 1.6em;
+    font-style: italic; font-size: 1.05rem; color: var(--ember);
+    opacity: 0; transition: opacity .8s;
+  }
+  .whisper.on { opacity: 1; }
+  .veil {
+    position: fixed; inset: 0; z-index: 3; pointer-events: none;
+    background: rgba(2,1,3,0);
+    transition: background 1.4s ease;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    padding-inline: 16px; text-align: center;
+  }
+  .veil.dark { background: rgba(2,1,3,.96); pointer-events: auto; }
+  .veil.seance { background: rgba(2,1,3,.84); pointer-events: auto; }
+  .veil p {
+    margin: 0; max-width: 22ch;
+    font-family: var(--display); font-weight: 700;
+    font-size: clamp(1.3rem, 5.5vw, 2.1rem); line-height: 1.3;
+    color: var(--bone);
+    text-shadow: 0 0 20px rgba(200,57,45,.6);
+    opacity: 0; transform: translateY(8px) scale(.98);
+    transition: opacity 1s ease, transform 1.6s ease;
+  }
+  .veil p.on { opacity: 1; transform: none; }
+  body.seance .board, body.seance .answer { z-index: 4; }
 
   /* ----- sustos ----- */
   .flash {
@@ -289,7 +329,7 @@
   @keyframes eyes { 0%, 100% { opacity: 0; } 20%, 70% { opacity: 1; } 45% { opacity: .15; } 50% { opacity: 1; } }
 
   @media (max-width: 480px) {
-    body { font-size: 16px; }
+    body { font-size: 17px; }
     .board { aspect-ratio: 4 / 3; }
     .eyes { gap: 28px; }
   }
@@ -301,7 +341,9 @@
 <div class="flash" id="flash"></div>
 <div class="eyes" id="eyes" aria-hidden="true"><i></i><i></i></div>
 
+<div class="closing" id="closing"></div>
 <main class="wrap" id="wrap">
+  <div class="veil" id="veil" aria-live="polite"></div>
   <header>
     <h1>El Espíritu Responde</h1>
     <p class="sub">Escribe la petición completa, luego tu pregunta. Si lo pides con respeto, el espíritu moverá la tabla.</p>
@@ -356,6 +398,7 @@
       <label for="petition">Petición <b>·</b> escríbela entera</label>
       <input type="text" id="petition" placeholder="Espíritu, por favor responde la siguiente pregunta:"
              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <p class="whisper" id="whisper"></p>
     </div>
     <div class="field">
       <label for="question">Pregunta <b>·</b> termina con ?</label>
@@ -447,10 +490,35 @@
     return { out, secret: secret.trim(), on };
   }
 
+  const closing = document.getElementById("closing");
+  const whisper = document.getElementById("whisper");
+  let called = false;
+  const WHISPERS = [[.3, "Algo se mueve en la habitación…"], [.6, "Te está escuchando."], [.85, "Ya casi está aquí."], [1, "Ha llegado. Ahora pregunta."]];
+
+  function atmosphere() {
+    const prog = Math.min(1, shown.length / PHRASE.length);
+    closing.style.opacity = String(prog * .9);
+    const r = Math.round(220 + 35 * prog), gb = Math.round(207 - 130 * prog);
+    petition.style.setProperty("--ink", `rgb(${r},${gb},${Math.round(gb * .85)})`);
+    let line = "";
+    WHISPERS.forEach(([t, txt]) => { if (prog >= t) line = txt; });
+    if (whisper.textContent !== line) {
+      whisper.classList.remove("on");
+      setTimeout(() => { whisper.textContent = line; if (line) whisper.classList.add("on"); }, line ? 250 : 0);
+    }
+    if (prog >= 1 && !called) {
+      called = true;
+      heartbeat(2);
+      setTimeout(() => { if (document.activeElement === petition) question.focus(); }, 1400);
+    }
+    if (prog < 1) called = false;
+  }
+
   function render() {
     const d = derive(keys);
     shown = d.out;
     petition.value = shown;
+    atmosphere();
     const end = shown.length;
     try { petition.setSelectionRange(end, end); } catch (e) {}
   }
@@ -465,6 +533,11 @@
       keys = Array.from(now); // edición a mitad o pegado: se toma literal
     }
     render();
+    // la vela tiembla con cada letra
+    document.body.classList.add("gust");
+    clearTimeout(petition._gust);
+    petition._gust = setTimeout(() => document.body.classList.remove("gust"), 90);
+    tick();
   });
   // mantener el cursor al final para que el truco no se rompa
   ["click", "keyup", "focus"].forEach(ev => petition.addEventListener(ev, () => {
@@ -596,6 +669,25 @@
     g.gain.setValueAtTime(.35, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .25);
     o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + .3);
   }
+  function tick() {
+    if (!soundOn || !ctx) return;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "triangle"; o.frequency.value = 70 + Math.random() * 30;
+    g.gain.setValueAtTime(.08, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .12);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + .15);
+  }
+  function heartbeat(times) {
+    if (!soundOn || !ctx) return;
+    for (let i = 0; i < times; i++) {
+      [0, .22].forEach((off, k) => {
+        const t = ctx.currentTime + i * .95 + off;
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.setValueAtTime(k ? 50 : 62, t); o.frequency.exponentialRampToValueAtTime(32, t + .2);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(k ? .35 : .5, t + .02); g.gain.exponentialRampToValueAtTime(.001, t + .3);
+        o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + .35);
+      });
+    }
+  }
   function scream() {
     if (!soundOn || !ctx) return;
     const t = ctx.currentTime, len = 1.4;
@@ -669,10 +761,47 @@
   function scare() {
     const f = document.getElementById("flash");
     const eyes = document.getElementById("eyes");
-    f.classList.remove("on"); eyes.classList.remove("on"); wrap.classList.remove("shake");
+    f.classList.remove("on"); eyes.classList.remove("on"); board.classList.remove("shake");
     void f.offsetWidth;
-    f.classList.add("on"); eyes.classList.add("on"); wrap.classList.add("shake");
+    f.classList.add("on"); eyes.classList.add("on"); board.classList.add("shake");
     scream();
+  }
+
+  const veil = document.getElementById("veil");
+  const OPENINGS = [
+    ["Las velas se apagan…", "Algo ha entrado en la habitación.", "No sueltes la tabla."],
+    ["Silencio.", "Alguien respira detrás de ti.", "No mires atrás."],
+    ["Hace frío de repente.", "La tabla se mueve sola.", "Ya viene la respuesta."],
+    ["Nadie hable.", "Está buscando tu voz.", "Te va a contestar."],
+  ];
+
+  async function enterSeance() {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const beat = reduced ? 500 : 1500;
+    veil.innerHTML = "";
+    document.body.classList.add("gust");
+    veil.classList.add("dark");
+    heartbeat(4);
+    await sleep(reduced ? 200 : 900);
+    for (const line of pick(OPENINGS)) {
+      const p = document.createElement("p");
+      p.textContent = line;
+      veil.appendChild(p);
+      void p.offsetWidth;
+      p.classList.add("on");
+      await sleep(beat);
+    }
+    veil.querySelectorAll("p").forEach(p => p.classList.remove("on"));
+    board.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    await sleep(reduced ? 200 : 900);
+    veil.innerHTML = "";
+    document.body.classList.add("seance");
+    veil.classList.replace("dark", "seance");
+  }
+  function leaveSeance() {
+    veil.classList.remove("dark", "seance");
+    document.body.classList.remove("seance", "gust");
+    closing.style.opacity = String(Math.min(.35, parseFloat(closing.style.opacity) || 0));
   }
 
   document.getElementById("ritual").addEventListener("submit", async e => {
@@ -682,6 +811,7 @@
     if (soundOn) ensureAudio();
     const q = question.value.trim();
     const r = decide();
+    await enterSeance();
     const said = await spell(r.text);
     const bye = pos["ADIÓS"];
     moveTo(bye, 0);
@@ -692,6 +822,8 @@
     bye.el.classList.remove("lit");
     board.classList.remove("possessed");
     moveTo(REST);
+    await sleep(1200);
+    leaveSeance();
 
     const entry = document.createElement("p");
     const qq = document.createElement("q"); qq.textContent = q || "(silencio)";
@@ -829,7 +961,7 @@
     for (let i = 1; i <= 3; i++) { g2.beginPath(); g2.arc(c, c, R * i / 3, 0, TAU); g2.stroke(); }
     g2.beginPath(); g2.moveTo(c - R, c); g2.lineTo(c + R, c); g2.moveTo(c, c - R); g2.lineTo(c, c + R); g2.stroke();
     g2.fillStyle = "rgba(127,194,140,.5)";
-    g2.font = Math.max(9, w / 34) + "px 'Special Elite', monospace";
+    g2.font = Math.max(9, w / 34) + "px 'Courier Prime', monospace";
     for (let i = 1; i <= 3; i++) g2.fillText(i * 2 + " m", c + 4, c - R * i / 3 + 12);
 
     // barrido con estela
@@ -878,7 +1010,7 @@
       const la = spirit.seen && spirit.visible ? Math.max(a, Math.random() < .06 ? .25 : .7) : a;
       if (la > .02) {
         const label = spirit.name.toUpperCase();
-        g2.font = Math.max(11, w / 24) + "px 'Special Elite', monospace";
+        g2.font = Math.max(11, w / 24) + "px 'Courier Prime', monospace";
         const tw = g2.measureText(label).width, fh = Math.max(11, w / 24);
         const lx = Math.min(Math.max(x - tw / 2, 8), w - tw - 8);
         const ly = y - Math.max(12, w / 28) < fh + 6 ? y + fh + Math.max(10, w / 30) : y - Math.max(12, w / 28);
@@ -894,7 +1026,7 @@
       // rótulo fijo en la parte baja de la pantalla del radar
       if (spirit.seen) {
         const txt = spirit.visible ? "PRESENCIA: " + spirit.name.toUpperCase() : "SEÑAL PERDIDA";
-        g2.font = Math.max(10, w / 30) + "px 'Special Elite', monospace";
+        g2.font = Math.max(10, w / 30) + "px 'Courier Prime', monospace";
         const bw = g2.measureText(txt).width;
         const blink = Math.floor(now / 600) % 2 ? 1 : .55;
         g2.fillStyle = `rgba(230,80,65,${blink})`;
@@ -931,6 +1063,7 @@
 
   document.getElementById("reset").addEventListener("click", () => {
     stopRadar();
+    leaveSeance();
     keys = []; render(); question.value = "";
     logEl.textContent = "";
     answerEl.classList.add("idle");
