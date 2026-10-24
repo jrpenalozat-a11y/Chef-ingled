@@ -102,6 +102,7 @@ function llamar(datos) {
       case 'supervision': return supervision(datos);
       case 'datos': return datosIntegracion(datos);
       case 'turnos': return horarioSemanal(datos);
+      case 'turnosGuardar': return guardarTurnos(datos);
       case 'turnonio': return turnonio(datos);
       case 'fijarLocal': return fijarLocal(datos);
       default: return { ok: false, error: 'Acción desconocida.' };
@@ -492,6 +493,61 @@ function horarioSemanal(d) {
     return { trabajador: f[0].trim(), dia: f[1].trim(), entrada: f[2].slice(0, 5), salida: f[3].slice(0, 5) };
   });
   return { ok: true, turnos: turnos };
+}
+
+/**
+ * Reemplaza la hoja Turnos con el horario aprobado en la página de
+ * operaciones. Es la única escritura permitida a la clave de integración:
+ * no toca Marcas, Trabajadores, el PIN ni la ubicación. Antes de escribir
+ * guarda una copia en la hoja "Turnos (anterior)".
+ */
+function guardarTurnos(d) {
+  validarAcceso(d);
+  if (!Array.isArray(d.turnos)) throw new Error('Faltan los turnos.');
+  if (d.turnos.length > 500) throw new Error('Demasiados turnos (máximo 500).');
+  var lunes = String(d.lunes || '');
+  if (lunes && !/^\d{4}-\d{2}-\d{2}$/.test(lunes)) throw new Error('La fecha "lunes" debe venir como yyyy-MM-dd.');
+  var hora = /^([01]?\d|2[0-3]):[0-5]\d$/;
+  var filas = d.turnos.map(function (t, i) {
+    var nombre = String((t && t.trabajador) || '').trim().slice(0, 80);
+    var dia = DIAS.filter(function (x) { return normalizar(x) === normalizar(t && t.dia); })[0];
+    var entrada = String((t && t.entrada) || '').trim(), salida = String((t && t.salida) || '').trim();
+    if (!nombre || !dia || !hora.test(entrada) || !hora.test(salida)) {
+      throw new Error('Turno ' + (i + 1) + ' inválido: se espera trabajador, día (Lunes…Domingo) y horas HH:MM.');
+    }
+    return [nombre, dia, ('0' + entrada).slice(-5), ('0' + salida).slice(-5)];
+  });
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var libro = SpreadsheetApp.getActiveSpreadsheet();
+    var hoja = hoja_(HOJAS.turnos);
+    var ahora = fmt(new Date(), 'yyyy-MM-dd HH:mm:ss');
+
+    var copia = libro.getSheetByName('Turnos (anterior)') || libro.insertSheet('Turnos (anterior)');
+    copia.clear();
+    copia.getRange(1, 1).setValue('Copia de la hoja Turnos tomada el ' + ahora + ', antes de recibir un horario nuevo.');
+    var previos = hoja.getRange(1, 1, Math.max(1, hoja.getLastRow()), 4).getDisplayValues();
+    copia.getRange(2, 1, previos.length, 4).setNumberFormat('@').setValues(previos);
+
+    if (hoja.getLastRow() > 1) hoja.getRange(2, 1, hoja.getLastRow() - 1, Math.max(4, hoja.getLastColumn())).clearContent();
+    if (filas.length) hoja.getRange(2, 1, filas.length, 4).setNumberFormat('@').setValues(filas);
+
+    if (lunes) escribirConfig('TURNOS_SEMANA', lunes);
+    escribirConfig('TURNOS_ACTUALIZADO', ahora + (d.claveApi ? ' (desde la página de operaciones)' : ' (administración)'));
+  } finally {
+    lock.releaseLock();
+  }
+
+  var activos = {};
+  listarTrabajadores().forEach(function (t) { activos[t.nombre.trim().toLowerCase()] = true; });
+  var sinTrabajador = [];
+  filas.forEach(function (f) {
+    var k = f[0].toLowerCase();
+    if (!activos[k] && sinTrabajador.indexOf(f[0]) < 0) sinTrabajador.push(f[0]);
+  });
+  return { ok: true, filas: filas.length, sinTrabajador: sinTrabajador };
 }
 
 function datosParaIA(desde, hasta) {

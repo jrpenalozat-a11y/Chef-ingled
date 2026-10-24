@@ -129,7 +129,7 @@ Mi Turno sigue siendo una app independiente. La página de operaciones se integr
 <a href="https://script.google.com/macros/s/AKfycbwkAvyWIy-lGC9hASCvPRDroAQynFUaBdB8iMrMK7HGMZC5OYKoSzfJUWwTUNFAKZF82w/exec" target="_blank" rel="noopener">Abrir Mi Turno</a>
 ```
 
-**2. Datos y Turnonio desde la página (o desde el DeepSeek de la página).** Con una **clave de integración** que solo permite leer y preguntarle a Turnonio (no puede marcar ni cambiar la ubicación):
+**2. Datos y Turnonio desde la página (o desde el DeepSeek de la página).** Con una **clave de integración** que permite leer, preguntarle a Turnonio y reemplazar la hoja Turnos con el horario aprobado (no puede marcar, ni tocar Trabajadores, Marcas, el PIN o la ubicación):
 
 1. En Apps Script elige la función `generarClaveIntegracion` y presiona **Ejecutar**. La clave aparece en el **Registro de ejecución**.
 2. Guárdala en el **servidor** de la página (variable de entorno o propiedad privada). **No** la pongas en el HTML o JavaScript público: cualquiera que abra la página podría verla.
@@ -142,6 +142,7 @@ Mi Turno sigue siendo una app independiente. La página de operaciones se integr
 | Estado de hoy completo | `{"accion":"supervision","claveApi":"…"}` |
 | Reporte por fechas | `{"accion":"reporte","claveApi":"…","desde":"…","hasta":"…"}` |
 | Horario semanal (hoja Turnos) | `{"accion":"turnos","claveApi":"…"}` → `{"ok":true,"turnos":[{"trabajador":"…","dia":"Lunes","entrada":"08:00","salida":"16:00"}]}` |
+| Guardar el horario aprobado (reemplaza la hoja Turnos; antes copia la anterior a "Turnos (anterior)") | `{"accion":"turnosGuardar","claveApi":"…","lunes":"2026-10-19","turnos":[{"trabajador":"…","dia":"Lunes","entrada":"07:00","salida":"15:54"}]}` → `{"ok":true,"filas":N,"sinTrabajador":[…]}` |
 
 Sin clave: `GET <url>?accion=estado` (nombre y ubicación del local) y `GET <url>?accion=trabajadores` (nombres activos).
 
