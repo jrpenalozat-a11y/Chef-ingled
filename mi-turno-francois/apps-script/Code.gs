@@ -100,6 +100,8 @@ function llamar(datos) {
       case 'misMarcas': return misMarcas(datos);
       case 'reporte': return reporte(datos);
       case 'supervision': return supervision(datos);
+      case 'datos': return datosIntegracion(datos);
+      case 'turnonio': return turnonio(datos);
       case 'fijarLocal': return fijarLocal(datos);
       default: return { ok: false, error: 'Acción desconocida.' };
     }
@@ -168,9 +170,12 @@ function misMarcas(d) {
  * Esta es la acción que leerá la página de Operación François.
  */
 function reporte(d) {
-  validarAdmin(d.pinAdmin);
+  validarAcceso(d);
   var desde = String(d.desde || fmt(new Date(), 'yyyy-MM-dd'));
-  var hasta = String(d.hasta || desde);
+  return construirReporte(desde, String(d.hasta || desde));
+}
+
+function construirReporte(desde, hasta) {
   var marcas = leerMarcas().filter(function (m) { return m.fecha >= desde && m.fecha <= hasta; });
 
   var dias = {};
@@ -212,7 +217,11 @@ function reporte(d) {
  * todas las marcas del día para revisarlas una por una.
  */
 function supervision(d) {
-  validarAdmin(d.pinAdmin);
+  validarAcceso(d);
+  return construirSupervision();
+}
+
+function construirSupervision() {
   var ahora = new Date();
   var hoy = fmt(ahora, 'yyyy-MM-dd');
   var horaAhora = fmt(ahora, 'HH:mm');
@@ -279,6 +288,25 @@ function validarTrabajador(rut, pin) {
   }
   CacheService.getScriptCache().remove(clave);
   return t;
+}
+
+/**
+ * Lectura de datos: con el PIN de administración (la app) o con la clave de
+ * integración (la página de operaciones). Escribir sigue pidiendo el PIN.
+ */
+function validarAcceso(d) {
+  if (d && d.claveApi) {
+    var clave = 'intentos_api';
+    frenarIntentos(clave);
+    var real = PropertiesService.getScriptProperties().getProperty('CLAVE_INTEGRACION') || '';
+    if (real.length < 20 || String(d.claveApi) !== real) {
+      sumarIntento(clave);
+      throw new Error('Clave de integración incorrecta.');
+    }
+    CacheService.getScriptCache().remove(clave);
+    return;
+  }
+  validarAdmin(d && d.pinAdmin);
 }
 
 function validarAdmin(pin) {
@@ -429,4 +457,90 @@ function fmt(fecha, patron) {
 
 function ahoraTexto() {
   return fmt(new Date(), 'yyyy-MM-dd HH:mm:ss');
+}
+
+/* ------------------------------------------------------------------ */
+/* Integración con la página de operaciones y Turnonio (DeepSeek)      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ejecutar una vez desde el editor: crea la clave de integración que usa la
+ * página de operaciones y la muestra en el Registro de ejecución.
+ */
+function generarClaveIntegracion() {
+  var clave = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
+  PropertiesService.getScriptProperties().setProperty('CLAVE_INTEGRACION', clave);
+  Logger.log('Clave de integración (guárdala en el servidor de la página, no en su código público): ' + clave);
+}
+
+/**
+ * Datos de asistencia listos para otra página o para una IA: sin RUT ni
+ * coordenadas. Por defecto, hoy y los últimos 31 días.
+ */
+function datosIntegracion(d) {
+  validarAcceso(d);
+  return { ok: true, datos: datosParaIA(d.desde, d.hasta) };
+}
+
+function datosParaIA(desde, hasta) {
+  var hoy = new Date();
+  hasta = String(hasta || fmt(hoy, 'yyyy-MM-dd'));
+  desde = String(desde || fmt(new Date(hoy.getTime() - 31 * 864e5), 'yyyy-MM-dd'));
+  var sup = construirSupervision();
+  var rep = construirReporte(desde, hasta);
+  return {
+    local: sup.local.nombre,
+    ahora: sup.fecha + ' ' + sup.hora + ' (' + sup.dia + ')',
+    hoy: sup.personas.map(function (p) {
+      return { nombre: p.nombre, cargo: p.cargo, estado: p.estado,
+        turno: p.turno ? p.turno.entrada + '-' + p.turno.salida : '', entrada: p.entrada,
+        atrasoMin: p.atraso, ultimaMarca: p.ultima ? p.ultima.tipo + ' ' + p.ultima.hora : '',
+        marcasFueraDelLocal: p.fueraDeZona, enviadasSinConexion: p.sinConexion };
+    }),
+    desde: desde, hasta: hasta,
+    dias: rep.filas.map(function (f) {
+      return { fecha: f.fecha, nombre: f.nombre, entrada: f.entrada, salida: f.salida,
+        colacionMin: f.colacion, minutosTrabajados: f.minutosTrabajados, atrasoMin: f.atraso,
+        marcasFueraDelLocal: f.fueraDeZona };
+    })
+  };
+}
+
+var TURNONIO = 'Eres Turnonio, el asistente de asistencia de François (cafetería, pastelería y panadería en La Florida, Santiago de Chile). ' +
+  'Respondes en español de Chile, breve, claro y ordenado, usando SOLO los datos de Mi Turno François que vienen en el mensaje. ' +
+  'Puedes calcular horas trabajadas, totales y promedios, rankings de atrasos, días sin salida, marcas fuera del local o enviadas sin conexión, ' +
+  'y comparar con los turnos. Da fechas (dd/mm) y horas concretas. Si un dato no está, dilo; no inventes personas, marcas ni horarios. ' +
+  'Cuando ayude, termina con 1 a 3 acciones concretas para el encargado. ' +
+  'Mi Turno es un control interno y no reemplaza el registro legal de asistencia; en temas legales sugiere consultar a un abogado o a la Dirección del Trabajo.';
+
+function turnonio(d) {
+  validarAcceso(d);
+  var pregunta = String(d.pregunta || '').trim().slice(0, 1500);
+  if (!pregunta) throw new Error('Escribe una pregunta para Turnonio.');
+  var props = PropertiesService.getScriptProperties();
+  var key = props.getProperty('DEEPSEEK_API_KEY');
+  if (!key) throw new Error('Falta la clave de DeepSeek: agrégala en Configuración del proyecto → Propiedades de la secuencia de comandos (DEEPSEEK_API_KEY).');
+
+  var mensajes = [{ role: 'system', content: TURNONIO },
+    { role: 'user', content: 'Datos de Mi Turno François (JSON):\n' + JSON.stringify(datosParaIA(d.desde, d.hasta)) }];
+  (Array.isArray(d.historial) ? d.historial.slice(-6) : []).forEach(function (m) {
+    if (m && (m.rol === 'user' || m.rol === 'assistant') && m.texto) mensajes.push({ role: m.rol, content: String(m.texto).slice(0, 2000) });
+  });
+  mensajes.push({ role: 'user', content: pregunta });
+
+  var r = UrlFetchApp.fetch('https://api.deepseek.com/chat/completions', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + key },
+    payload: JSON.stringify({ model: props.getProperty('DEEPSEEK_MODELO') || 'deepseek-chat',
+      messages: mensajes, temperature: 0.3, max_tokens: 1200 })
+  });
+  var codigo = r.getResponseCode();
+  if (codigo === 401) throw new Error('DeepSeek rechazó la clave. Revisa DEEPSEEK_API_KEY.');
+  if (codigo === 402) throw new Error('La cuenta de DeepSeek no tiene saldo.');
+  if (codigo === 429) throw new Error('DeepSeek está saturado. Intenta en un minuto.');
+  if (codigo >= 300) throw new Error('DeepSeek respondió con error ' + codigo + '.');
+  var j = JSON.parse(r.getContentText());
+  var texto = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  if (!texto) throw new Error('DeepSeek no devolvió respuesta.');
+  return { ok: true, respuesta: texto };
 }

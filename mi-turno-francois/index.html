@@ -158,6 +158,16 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .pill.s-warn { color: var(--warn); }
 .pill.s-bad { color: var(--bad); }
 .total.alert b { color: var(--bad); }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip-btn { padding: 8px 12px; background: var(--soft); font-size: .85rem; border-radius: 999px; text-align: left; }
+.chat { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.chat:empty { display: none; }
+.msg { padding: 12px 14px; border-radius: 16px; max-width: 88%; white-space: pre-wrap; line-height: 1.5; overflow-wrap: anywhere; }
+.msg.yo { align-self: flex-end; background: var(--ink); color: var(--bg); }
+.msg.tn { align-self: flex-start; background: var(--soft); }
+.msg.tn.pensando { color: var(--muted); font-style: italic; }
+.ask { display: flex; gap: 10px; }
+.ask input { flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .banner { background: var(--soft); border-radius: var(--radius); padding: 10px 14px; font-size: .875rem; }
 .banner.warn { color: var(--warn); }
 footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -272,6 +282,7 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
           <button type="button" data-p="p-super" aria-pressed="true">Supervisión</button>
           <button type="button" data-p="p-reporte" aria-pressed="false">Reporte de horas</button>
           <button type="button" data-p="p-local" aria-pressed="false">Ubicación del local</button>
+          <button type="button" data-p="p-turnonio" aria-pressed="false">Turnonio</button>
         </div>
         <button class="link small" id="btn-admin-salir" type="button">Salir</button>
       </div>
@@ -314,6 +325,24 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
         </div>
         <p class="error" id="err-reporte"></p>
         <button class="btn" id="btn-csv" type="button">Descargar planilla (CSV)</button>
+      </div>
+
+      <div class="card" id="p-turnonio" hidden>
+        <div class="who"><h2>Turnonio</h2><span class="small muted">Asistente de asistencia con DeepSeek</span></div>
+        <p class="small muted">Pregúntale por atrasos, horas trabajadas o quién está en turno. Revisa hoy y los últimos 31 días. A DeepSeek solo le llegan nombres, horas y estados: nunca RUT ni ubicaciones.</p>
+        <div class="chips" id="tn-sugerencias">
+          <button type="button" class="chip-btn">¿Cómo va el día hoy?</button>
+          <button type="button" class="chip-btn">¿Quién llegó tarde esta semana y cuántos minutos?</button>
+          <button type="button" class="chip-btn">Horas trabajadas por persona este mes</button>
+          <button type="button" class="chip-btn">¿Hay marcas fuera del local o días sin salida?</button>
+        </div>
+        <div class="chat" id="tn-chat" aria-live="polite"></div>
+        <form class="ask" id="tn-form">
+          <label class="label" for="tn-pregunta" hidden>Pregunta para Turnonio</label>
+          <input type="text" id="tn-pregunta" autocomplete="off" placeholder="Escribe tu pregunta para Turnonio">
+          <button class="btn primary" type="submit" id="tn-enviar">Preguntar</button>
+        </form>
+        <p class="error" id="err-tn"></p>
       </div>
 
       <div class="card" id="p-local" hidden>
@@ -424,6 +453,9 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
     if (d.accion === 'fijarLocal') {
       const nuevo = { ...local, lat: d.lat, lng: d.lng, radio: Number(d.radio) || local.radio };
       mem.set('demo.local', nuevo); return { ok: true, local: nuevo };
+    }
+    if (d.accion === 'turnonio') {
+      return { ok: true, respuesta: 'Modo demostración: aquí Turnonio responderá usando DeepSeek y los datos reales de Mi Turno.\n\nPor ejemplo: **Hoy** hay ' + marcas.filter((m) => m.fecha === hoy).length + ' marcas registradas.' };
     }
     if (d.accion === 'supervision') {
       const detalle = marcas.filter((m) => m.fecha === hoy).map((m) => ({ ...m, hora: m.hora.slice(0, 5), precision: null, sinConexion: false })).reverse();
@@ -725,10 +757,11 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
 
   // Pestañas de Administración
   function verPanel(id) {
-    ['p-super', 'p-reporte', 'p-local'].forEach((p) => { $(p).hidden = p !== id; });
+    ['p-super', 'p-reporte', 'p-local', 'p-turnonio'].forEach((p) => { $(p).hidden = p !== id; });
     [...$('admin-tabs').children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === id)));
     if (id === 'p-reporte' && !ultimoReporte) pedirReporte();
     if (id === 'p-local') pintarLocal();
+    if (id === 'p-turnonio') $('tn-pregunta').focus();
   }
   $('admin-tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) verPanel(b.dataset.p); });
 
@@ -789,6 +822,38 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
       tb.append(tr);
     });
   }
+
+  // Turnonio: chat con DeepSeek a través del servidor de Mi Turno.
+  const historialTn = [];
+  function textoTn(t) {
+    // Texto plano con **negritas** de DeepSeek, sin interpretar otro HTML.
+    const p = el('div', 'msg tn');
+    t.split(/(\*\*[^*]+\*\*)/g).forEach((parte) => {
+      if (/^\*\*[^*]+\*\*$/.test(parte)) p.append(el('b', null, parte.slice(2, -2)));
+      else if (parte) p.append(document.createTextNode(parte.replace(/^#{1,4}\s*/gm, '')));
+    });
+    return p;
+  }
+  async function preguntarTn(pregunta) {
+    pregunta = pregunta.trim();
+    if (!pregunta) return;
+    const chat = $('tn-chat');
+    $('err-tn').textContent = '';
+    chat.append(el('div', 'msg yo', pregunta));
+    const espera = el('div', 'msg tn pensando', 'Turnonio está revisando los datos…');
+    chat.append(espera); chat.scrollTop = chat.scrollHeight;
+    $('tn-enviar').disabled = true; $('tn-pregunta').value = '';
+    try {
+      const r = await api({ accion: 'turnonio', pinAdmin, pregunta, historial: historialTn.slice(-6) });
+      espera.replaceWith(textoTn(r.respuesta));
+      historialTn.push({ rol: 'user', texto: pregunta }, { rol: 'assistant', texto: r.respuesta });
+    } catch (e) {
+      espera.remove(); $('err-tn').textContent = e.message;
+    }
+    $('tn-enviar').disabled = false; chat.scrollTop = chat.scrollHeight;
+  }
+  $('tn-form').addEventListener('submit', (e) => { e.preventDefault(); preguntarTn($('tn-pregunta').value); });
+  $('tn-sugerencias').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) preguntarTn(b.textContent); });
 
   function fijarRango(r) {
     const h = new Date(), d = new Date(h);

@@ -97,27 +97,54 @@ Abre el link y elige **Agregar a pantalla de inicio**: en Safari está en Compar
 
 ## Administración
 
-En la app, el panel de **Administración** muestra para hoy, ayer, esta semana, este mes o un rango a elección:
+Se entra con el PIN de administración. Tiene cuatro pestañas:
 
-- Entrada, salida y horas trabajadas (descontando la colación).
-- Minutos de atraso según la hoja `Turnos`.
-- Marcas hechas fuera del local.
-- Días con entrada pero sin salida.
-- Un botón para descargar la planilla en CSV, que abre en Excel.
+- **Supervisión** (se abre primero y se actualiza sola cada minuto): quién está en el local, en colación, quién llegó tarde o no ha llegado según la hoja `Turnos`, marcas fuera del local y el detalle de cada marca del día.
+- **Reporte de horas**: entrada, salida, horas trabajadas (descontando colación), atrasos y marcas fuera del local por rango de fechas, con descarga CSV para Excel.
+- **Ubicación del local**: fija el punto de referencia y el radio permitido.
+- **Turnonio**: el asistente con DeepSeek (ver abajo).
 
 Todo queda además en la hoja `Marcas` de Google Sheets. Las marcas no se borran desde la app.
 
-## Conexión con la página de Operación François
+## Turnonio, el agente de DeepSeek
 
-La app es independiente, pero sus datos están listos para que la página de operaciones los lea más adelante, por la misma URL del servidor:
+Turnonio responde preguntas sobre la asistencia (atrasos, horas, quién está en turno, marcas raras) usando los datos de hoy y de los últimos 31 días. Corre en el servidor de Apps Script: la clave de DeepSeek nunca llega a ningún navegador.
 
-| Para qué | Cómo |
+**A DeepSeek solo se le envían** nombres, cargos, horas, minutos de atraso y estados. **Nunca** RUT, PIN ni coordenadas. Como DeepSeek es un servicio externo, conviene mencionarlo en el aviso al personal.
+
+Para activarlo:
+
+1. Crea una clave en [platform.deepseek.com](https://platform.deepseek.com) (API keys) y carga saldo.
+2. En Apps Script: **Configuración del proyecto** (engranaje) → **Propiedades de la secuencia de comandos** → **Agregar propiedad**: nombre `DEEPSEEK_API_KEY`, valor tu clave. Guarda.
+3. Opcional: propiedad `DEEPSEEK_MODELO` para usar otro modelo (por defecto `deepseek-chat`).
+4. Publica una nueva versión. La primera vez Google pedirá un permiso nuevo ("conectarse a un servicio externo"): **Avanzado → Ir a … → Permitir**.
+
+## Integración con la página de Operación François
+
+Mi Turno sigue siendo una app independiente. La página de operaciones se integra de dos formas:
+
+**1. Pestaña "Mi Turno" con acceso a la app.** Un botón que abra la app en pestaña nueva:
+
+```html
+<a href="https://script.google.com/macros/s/AKfycbwkAvyWIy-lGC9hASCvPRDroAQynFUaBdB8iMrMK7HGMZC5OYKoSzfJUWwTUNFAKZF82w/exec" target="_blank" rel="noopener">Abrir Mi Turno</a>
+```
+
+**2. Datos y Turnonio desde la página (o desde el DeepSeek de la página).** Con una **clave de integración** que solo permite leer y preguntarle a Turnonio (no puede marcar ni cambiar la ubicación):
+
+1. En Apps Script elige la función `generarClaveIntegracion` y presiona **Ejecutar**. La clave aparece en el **Registro de ejecución**.
+2. Guárdala en el **servidor** de la página (variable de entorno o propiedad privada). **No** la pongas en el HTML o JavaScript público: cualquiera que abra la página podría verla.
+3. Desde ese servidor, `POST` a la URL `/exec` con cuerpo JSON (`Content-Type: text/plain` evita problemas de CORS):
+
+| Para qué | Cuerpo |
 |---|---|
-| Estado del local | `GET <apiUrl>?accion=estado` |
-| Lista de personal activo | `GET <apiUrl>?accion=trabajadores` |
-| Resumen de asistencia | `POST <apiUrl>` con `{"accion":"reporte","pinAdmin":"…","desde":"2026-10-01","hasta":"2026-10-31"}` |
+| Preguntarle a Turnonio | `{"accion":"turnonio","claveApi":"…","pregunta":"¿Quién llegó tarde esta semana?","historial":[{"rol":"user","texto":"…"},{"rol":"assistant","texto":"…"}]}` → `{"ok":true,"respuesta":"…"}` |
+| Datos para otra IA o un tablero | `{"accion":"datos","claveApi":"…","desde":"2026-10-01","hasta":"2026-10-31"}` → `{"ok":true,"datos":{"hoy":[…],"dias":[…]}}` (sin RUT ni coordenadas) |
+| Estado de hoy completo | `{"accion":"supervision","claveApi":"…"}` |
+| Reporte por fechas | `{"accion":"reporte","claveApi":"…","desde":"…","hasta":"…"}` |
 
-El reporte devuelve, por trabajador y día: `entrada`, `salida`, `minutosTrabajados`, `colacion`, `atraso`, `fueraDeZona` y el detalle de cada marca.
+Sin clave: `GET <url>?accion=estado` (nombre y ubicación del local) y `GET <url>?accion=trabajadores` (nombres activos).
+
+Si la página es un Artifact de Claude, su seguridad bloquea llamadas a `script.google.com`: ahí la integración es el botón del punto 1, o leer la planilla con el conector de Google Drive.
 
 ## Archivos
 
