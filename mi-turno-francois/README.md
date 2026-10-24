@@ -141,6 +141,7 @@ Mi Turno sigue siendo una app independiente. La página de operaciones se integr
 | Datos para otra IA o un tablero | `{"accion":"datos","claveApi":"…","desde":"2026-10-01","hasta":"2026-10-31"}` → `{"ok":true,"datos":{"hoy":[…],"dias":[…]}}` (sin RUT ni coordenadas) |
 | Estado de hoy completo | `{"accion":"supervision","claveApi":"…"}` |
 | Reporte por fechas | `{"accion":"reporte","claveApi":"…","desde":"…","hasta":"…"}` |
+| Horario semanal (hoja Turnos) | `{"accion":"turnos","claveApi":"…"}` → `{"ok":true,"turnos":[{"trabajador":"…","dia":"Lunes","entrada":"08:00","salida":"16:00"}]}` |
 
 Sin clave: `GET <url>?accion=estado` (nombre y ubicación del local) y `GET <url>?accion=trabajadores` (nombres activos).
 

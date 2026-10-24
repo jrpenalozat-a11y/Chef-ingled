@@ -101,6 +101,7 @@ function llamar(datos) {
       case 'reporte': return reporte(datos);
       case 'supervision': return supervision(datos);
       case 'datos': return datosIntegracion(datos);
+      case 'turnos': return horarioSemanal(datos);
       case 'turnonio': return turnonio(datos);
       case 'fijarLocal': return fijarLocal(datos);
       default: return { ok: false, error: 'Acción desconocida.' };
@@ -480,6 +481,17 @@ function generarClaveIntegracion() {
 function datosIntegracion(d) {
   validarAcceso(d);
   return { ok: true, datos: datosParaIA(d.desde, d.hasta) };
+}
+
+/** Horario semanal de la hoja Turnos (solo lectura, sin RUT). */
+function horarioSemanal(d) {
+  validarAcceso(d);
+  var turnos = filas_(HOJAS.turnos).filter(function (f) {
+    return f[0].trim() && /^\d{1,2}:\d{2}/.test(f[2]) && !/^ejemplo/i.test(f[0].trim());
+  }).map(function (f) {
+    return { trabajador: f[0].trim(), dia: f[1].trim(), entrada: f[2].slice(0, 5), salida: f[3].slice(0, 5) };
+  });
+  return { ok: true, turnos: turnos };
 }
 
 function datosParaIA(desde, hasta) {
