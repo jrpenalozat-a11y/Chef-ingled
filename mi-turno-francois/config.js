@@ -3,5 +3,5 @@
 // Si queda vacía, la app funciona en modo demostración con datos de ejemplo
 // que solo viven en el teléfono.
 window.MI_TURNO_CONFIG = {
-  apiUrl: ""
+  apiUrl: "https://script.google.com/macros/s/AKfycbwkAvyWIy-lGC9hASCvPRDroAQynFUaBdB8iMrMK7HGMZC5OYKoSzfJUWwTUNFAKZF82w/exec"
 };

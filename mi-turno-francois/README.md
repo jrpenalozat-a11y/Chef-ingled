@@ -4,6 +4,12 @@ App para que el personal de François marque **entrada, salida a colación, vuel
 
 > **Control interno.** Esta app no reemplaza el registro legal de asistencia. En Chile, un registro electrónico con validez legal debe estar certificado y autorizado por la Dirección del Trabajo (Res. Ex. N°38/2024). Mientras tanto, mantengan el libro de asistencia oficial.
 
+## Link de la app
+
+**https://script.google.com/macros/s/AKfycbwkAvyWIy-lGC9hASCvPRDroAQynFUaBdB8iMrMK7HGMZC5OYKoSzfJUWwTUNFAKZF82w/exec**
+
+Ese link abre la app en el teléfono y también es la dirección de datos para la página de Operación François (`?accion=estado`, `?accion=trabajadores`, POST `reporte`).
+
 ## Cómo funciona
 
 ```
