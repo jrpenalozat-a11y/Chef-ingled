@@ -66,15 +66,18 @@ function configurarHojas() {
 /* Entradas HTTP                                                       */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Sin parámetros, la URL /exec muestra la app (archivo HTML "index" de este
+ * proyecto). Con ?accion=... responde datos en JSON, para otras páginas.
+ */
 function doGet(e) {
-  var accion = (e && e.parameter && e.parameter.accion) || 'estado';
-  try {
-    if (accion === 'trabajadores') return responder({ ok: true, trabajadores: listarTrabajadores() });
-    if (accion === 'estado') return responder({ ok: true, local: datosLocal(), hora: ahoraTexto() });
-    return responder({ ok: false, error: 'Acción desconocida.' });
-  } catch (err) {
-    return responder({ ok: false, error: String(err.message || err) });
+  var accion = e && e.parameter && e.parameter.accion;
+  if (!accion) {
+    return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('Mi Turno François')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
   }
+  return responder(llamar({ accion: accion }));
 }
 
 function doPost(e) {
@@ -84,16 +87,23 @@ function doPost(e) {
   } catch (err) {
     return responder({ ok: false, error: 'Solicitud inválida.' });
   }
+  return responder(llamar(datos));
+}
+
+/** Punto de entrada único: lo usan doGet/doPost y la app vía google.script.run. */
+function llamar(datos) {
   try {
-    switch (datos.accion) {
-      case 'marcar': return responder(marcar(datos));
-      case 'misMarcas': return responder(misMarcas(datos));
-      case 'reporte': return responder(reporte(datos));
-      case 'fijarLocal': return responder(fijarLocal(datos));
-      default: return responder({ ok: false, error: 'Acción desconocida.' });
+    switch (datos && datos.accion) {
+      case 'trabajadores': return { ok: true, trabajadores: listarTrabajadores() };
+      case 'estado': return { ok: true, local: datosLocal(), hora: ahoraTexto() };
+      case 'marcar': return marcar(datos);
+      case 'misMarcas': return misMarcas(datos);
+      case 'reporte': return reporte(datos);
+      case 'fijarLocal': return fijarLocal(datos);
+      default: return { ok: false, error: 'Acción desconocida.' };
     }
   } catch (err) {
-    return responder({ ok: false, error: String(err.message || err) });
+    return { ok: false, error: String(err.message || err) };
   }
 }
 

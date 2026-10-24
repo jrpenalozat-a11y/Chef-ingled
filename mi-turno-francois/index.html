@@ -295,7 +295,9 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
   'use strict';
 
   const API = ((window.MI_TURNO_CONFIG || {}).apiUrl || '').trim();
-  const DEMO = !API;
+  // Servida por Google Apps Script: habla con el servidor directo, sin URL.
+  const GAS = !!(window.google && google.script && google.script.run);
+  const DEMO = !API && !GAS;
   const TIPOS = ['Entrada', 'Salida a colación', 'Vuelta de colación', 'Salida'];
   const SIGUIENTE = { '': 'Entrada', 'Entrada': 'Salida a colación', 'Salida a colación': 'Vuelta de colación', 'Vuelta de colación': 'Salida', 'Salida': 'Entrada' };
   const LARGO_PIN = 4;
@@ -311,8 +313,17 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
   };
 
   // ---------- Servidor ----------
+  function gas(datos) {
+    return new Promise((ok, falla) => {
+      google.script.run
+        .withSuccessHandler((j) => (j && j.ok ? ok(j) : falla(new Error((j && j.error) || 'No se pudo completar.'))))
+        .withFailureHandler((e) => { const x = new Error((e && e.message) || 'Sin conexión.'); x.offline = true; falla(x); })
+        .llamar(datos);
+    });
+  }
   async function api(datos) {
     if (DEMO) return demo(datos);
+    if (GAS) return gas(datos);
     const r = await fetch(API, { method: 'POST', body: JSON.stringify(datos) });
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'No se pudo completar.');
@@ -320,6 +331,7 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
   }
   async function apiGet(accion) {
     if (DEMO) return demo({ accion });
+    if (GAS) return gas({ accion });
     const r = await fetch(API + '?accion=' + encodeURIComponent(accion));
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'No se pudo completar.');
@@ -511,7 +523,7 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
     try {
       r = await api(datos);
     } catch (e) {
-      if (e instanceof TypeError) { // sin conexión: guardar y reintentar después
+      if (e instanceof TypeError || e.offline) { // sin conexión: guardar y reintentar después
         const cola = mem.get('pendientes', []);
         cola.push({ ...datos, sinConexion: true });
         mem.set('pendientes', cola);
@@ -548,7 +560,7 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
     if (!cola.length || DEMO) return avisoPendientes();
     const quedan = [];
     for (const m of cola) {
-      try { await api(m); } catch (e) { if (e instanceof TypeError) quedan.push(m); }
+      try { await api(m); } catch (e) { if (e instanceof TypeError || e.offline) quedan.push(m); }
     }
     mem.set('pendientes', quedan);
     avisoPendientes();

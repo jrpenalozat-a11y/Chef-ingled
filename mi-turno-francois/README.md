@@ -54,15 +54,21 @@ El nombre debe ser igual al de la hoja Trabajadores.
 ### 3. Publicar el servidor
 
 1. En Apps Script: **Implementar → Nueva implementación → Aplicación web**.
-2. Ejecutar como: **Yo**. Quién tiene acceso: **Cualquier usuario**.
-3. Copia la URL que termina en `/exec`.
-4. Pégala en [`config.js`](config.js), en `apiUrl`.
+2. Ejecutar como: **Yo**. Quién tiene acceso: **Cualquiera**.
+3. Copia la URL que termina en `/exec`. Solo si usas Vercel (paso 4), pégala en [`config.js`](config.js), en `apiUrl`.
 
 Si después cambias `Code.gs`, usa **Implementar → Gestionar implementaciones → Editar → Nueva versión**. Así la URL no cambia.
 
 ### 4. Publicar la app
 
-Esta carpeta es un sitio estático independiente:
+**Opción simple (recomendada): Google sirve la app.**
+
+1. En Apps Script, junto a **Archivos**, toca **+ → HTML** y ponle de nombre `index`.
+2. Borra su contenido y pega el de [`index.html`](index.html). Guarda.
+3. **Implementar → Gestionar implementaciones →** lápiz **→ Versión: Nueva versión → Implementar.**
+4. La URL que termina en `/exec` **es la app**: ábrela en el teléfono. No hace falta tocar `config.js`.
+
+**Opción alternativa: Vercel.** Esta carpeta también funciona como sitio estático independiente:
 
 1. En Vercel: **Add New → Project** e importa este repositorio.
 2. En **Root Directory** elige `mi-turno-francois`.
