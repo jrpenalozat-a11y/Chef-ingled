@@ -99,6 +99,7 @@ function llamar(datos) {
       case 'marcar': return marcar(datos);
       case 'misMarcas': return misMarcas(datos);
       case 'reporte': return reporte(datos);
+      case 'supervision': return supervision(datos);
       case 'fijarLocal': return fijarLocal(datos);
       default: return { ok: false, error: 'Acción desconocida.' };
     }
@@ -203,6 +204,55 @@ function reporte(d) {
     };
   });
   return { ok: true, desde: desde, hasta: hasta, filas: filas, local: datosLocal() };
+}
+
+/**
+ * Estado de hoy por trabajador activo: dónde está según su última marca,
+ * su turno del día, atraso y marcas fuera del local, más el detalle de
+ * todas las marcas del día para revisarlas una por una.
+ */
+function supervision(d) {
+  validarAdmin(d.pinAdmin);
+  var ahora = new Date();
+  var hoy = fmt(ahora, 'yyyy-MM-dd');
+  var horaAhora = fmt(ahora, 'HH:mm');
+  var dia = DIAS[Number(fmt(ahora, 'u')) % 7];
+  var tolerancia = Number(leerConfig().TOLERANCIA_MIN || 0);
+
+  var turnos = {};
+  filas_(HOJAS.turnos).forEach(function (f) {
+    if (normalizar(f[1]) === normalizar(dia) && /^\d{1,2}:\d{2}/.test(f[2])) {
+      turnos[f[0].trim().toLowerCase()] = { entrada: f[2].slice(0, 5), salida: f[3].slice(0, 5) };
+    }
+  });
+
+  var detalle = filas_(HOJAS.marcas).filter(function (f) { return f[0] === hoy; }).map(function (f) {
+    return { hora: f[1].slice(0, 5), nombre: f[2], rut: f[3], tipo: f[4],
+      distancia: f[8] === '' ? null : Number(f[8]), precision: f[7] === '' ? null : Number(f[7]),
+      dentroZona: f[9], atraso: f[10] === '' ? null : Number(f[10]), sinConexion: f[12] === 'Sí' };
+  });
+
+  var ESTADO = { 'Entrada': 'En turno', 'Salida a colación': 'En colación', 'Vuelta de colación': 'En turno', 'Salida': 'Terminó' };
+  var personas = listarTrabajadores().map(function (t) {
+    var propias = detalle.filter(function (m) { return m.rut === t.rut; });
+    var turno = turnos[t.nombre.toLowerCase()] || null;
+    var ultima = propias.length ? propias[propias.length - 1] : null;
+    var entrada = propias.filter(function (m) { return m.tipo === 'Entrada'; })[0] || null;
+    var estado;
+    if (ultima) estado = ESTADO[ultima.tipo];
+    else if (!turno) estado = 'Libre hoy';
+    else if (minutosEntre(turno.entrada, horaAhora) > tolerancia) estado = 'No ha llegado';
+    else estado = 'Por llegar';
+    return {
+      nombre: t.nombre, cargo: t.cargo, estado: estado, turno: turno,
+      entrada: entrada ? entrada.hora : '', atraso: entrada ? entrada.atraso : null,
+      ultima: ultima, fueraDeZona: propias.filter(function (m) { return m.dentroZona === 'No'; }).length,
+      sinConexion: propias.filter(function (m) { return m.sinConexion; }).length
+    };
+  });
+
+  return { ok: true, fecha: hoy, hora: horaAhora, dia: dia, personas: personas,
+    detalle: detalle.reverse(), local: datosLocal() };
 }
 
 function fijarLocal(d) {

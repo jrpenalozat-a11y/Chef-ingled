@@ -147,6 +147,17 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .total { background: var(--soft); border-radius: var(--radius); padding: 12px; }
 .total b { display: block; font-family: var(--mono); font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 
+.admin-top { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
+.people { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.person { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.person .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.person b { font-family: var(--display); font-size: 1.05rem; }
+.person p { font-size: .85rem; color: var(--muted); }
+.pill { font-size: .75rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; background: var(--soft); color: var(--muted); }
+.pill.s-ok { color: var(--ok); }
+.pill.s-warn { color: var(--warn); }
+.pill.s-bad { color: var(--bad); }
+.total.alert b { color: var(--bad); }
 .banner { background: var(--soft); border-radius: var(--radius); padding: 10px 14px; font-size: .875rem; }
 .banner.warn { color: var(--warn); }
 footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -168,8 +179,6 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
   .punch.next { min-height: 220px; }
   .punch.next b { font-size: 2.4rem; }
   #admin-login { width: 100%; max-width: 520px; margin-inline: auto; }
-  #admin-panel:not([hidden]) { display: grid !important; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); align-items: start; }
-  .totals { grid-template-columns: repeat(4, 1fr); }
   .table-wrap { margin-inline: 0; padding-inline: 0; }
   .sheet-wrap { align-items: center; }
   .sheet { max-width: 420px; border-radius: 22px; }
@@ -257,8 +266,34 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
     </div>
 
     <div id="admin-panel" hidden style="display:flex;flex-direction:column;gap:20px">
-      <div class="card">
-        <div class="who"><h1>Asistencia</h1><button class="link small" id="btn-admin-salir" type="button">Salir</button></div>
+      <div class="admin-top">
+        <h1>Administración</h1>
+        <div class="tabs" id="admin-tabs" role="tablist">
+          <button type="button" data-p="p-super" aria-pressed="true">Supervisión</button>
+          <button type="button" data-p="p-reporte" aria-pressed="false">Reporte de horas</button>
+          <button type="button" data-p="p-local" aria-pressed="false">Ubicación del local</button>
+        </div>
+        <button class="link small" id="btn-admin-salir" type="button">Salir</button>
+      </div>
+
+      <div class="card" id="p-super">
+        <div class="who"><h2 id="sup-titulo">Hoy</h2><span class="small muted" id="sup-hora"></span></div>
+        <div class="totals" id="sup-totales"></div>
+        <p class="label">Personal</p>
+        <div class="people" id="sup-personas"></div>
+        <p class="label">Marcas de hoy, una por una</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Hora</th><th>Trabajador</th><th>Marca</th><th>Distancia</th><th>Lugar</th><th>Precisión GPS</th><th>Nota</th></tr></thead>
+            <tbody id="sup-detalle"></tbody>
+          </table>
+        </div>
+        <p class="error" id="err-super"></p>
+        <button class="btn" id="btn-super" type="button">Actualizar ahora</button>
+      </div>
+
+      <div class="card" id="p-reporte" hidden>
+        <h2>Reporte de horas</h2>
         <div class="tabs" id="rangos">
           <button type="button" data-r="hoy" aria-pressed="true">Hoy</button>
           <button type="button" data-r="ayer" aria-pressed="false">Ayer</button>
@@ -281,7 +316,7 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
         <button class="btn" id="btn-csv" type="button">Descargar planilla (CSV)</button>
       </div>
 
-      <div class="card">
+      <div class="card" id="p-local" hidden>
         <h2>Ubicación del local</h2>
         <p class="muted small" id="txt-local">Sin fijar.</p>
         <div class="field">
@@ -389,6 +424,18 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
     if (d.accion === 'fijarLocal') {
       const nuevo = { ...local, lat: d.lat, lng: d.lng, radio: Number(d.radio) || local.radio };
       mem.set('demo.local', nuevo); return { ok: true, local: nuevo };
+    }
+    if (d.accion === 'supervision') {
+      const detalle = marcas.filter((m) => m.fecha === hoy).map((m) => ({ ...m, hora: m.hora.slice(0, 5), precision: null, sinConexion: false })).reverse();
+      const ESTADO = { 'Entrada': 'En turno', 'Salida a colación': 'En colación', 'Vuelta de colación': 'En turno', 'Salida': 'Terminó' };
+      const personas = trabajadores.map((t) => {
+        const propias = detalle.filter((m) => m.rut === t.rut);
+        const ultima = propias[0] || null;
+        const e = propias.filter((m) => m.tipo === 'Entrada').pop();
+        return { nombre: t.nombre, cargo: t.cargo, estado: ultima ? ESTADO[ultima.tipo] : 'Libre hoy', turno: null,
+          entrada: e ? e.hora : '', atraso: null, ultima, fueraDeZona: propias.filter((m) => m.dentroZona === 'No').length, sinConexion: 0 };
+      });
+      return { ok: true, fecha: hoy, hora: horaTxt(new Date()), personas, detalle, local };
     }
     if (d.accion === 'reporte') {
       const grupos = {};
@@ -667,15 +714,81 @@ footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wr
   $('btn-admin-entrar').addEventListener('click', async () => {
     $('err-admin').textContent = '';
     const pin = $('in-pin-admin').value.trim();
-    const hoy = fechaISO(new Date());
     try {
-      const r = await api({ accion: 'reporte', pinAdmin: pin, desde: hoy, hasta: hoy });
+      const r = await api({ accion: 'supervision', pinAdmin: pin });
       pinAdmin = pin;
       $('admin-login').hidden = true; $('admin-panel').hidden = false;
-      fijarRango('hoy'); pintarReporte(r);
+      fijarRango('hoy'); verPanel('p-super'); pintarSupervision(r);
     } catch (e) { $('err-admin').textContent = e.message; }
   });
   $('in-pin-admin').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-admin-entrar').click(); });
+
+  // Pestañas de Administración
+  function verPanel(id) {
+    ['p-super', 'p-reporte', 'p-local'].forEach((p) => { $(p).hidden = p !== id; });
+    [...$('admin-tabs').children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === id)));
+    if (id === 'p-reporte' && !ultimoReporte) pedirReporte();
+    if (id === 'p-local') pintarLocal();
+  }
+  $('admin-tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) verPanel(b.dataset.p); });
+
+  // Supervisión: estado de hoy, se refresca sola cada minuto mientras está abierta.
+  const CLASE = { 'En turno': 's-ok', 'En colación': 's-warn', 'No ha llegado': 's-bad', 'Terminó': '', 'Por llegar': '', 'Libre hoy': '' };
+  async function pedirSupervision() {
+    $('err-super').textContent = '';
+    try { pintarSupervision(await api({ accion: 'supervision', pinAdmin })); }
+    catch (e) { $('err-super').textContent = e.message; }
+  }
+  $('btn-super').addEventListener('click', pedirSupervision);
+  setInterval(() => { if (pinAdmin && !$('v-admin').hidden && !$('p-super').hidden && !document.hidden) pedirSupervision(); }, 60000);
+
+  function el(tag, cls, txt) { const x = document.createElement(tag); if (cls) x.className = cls; if (txt != null) x.textContent = txt; return x; }
+  function pintarSupervision(r) {
+    if (r.local) { local = r.local; mem.set('local', local); }
+    $('sup-titulo').textContent = `Hoy, ${fmtFecha.format(new Date())}`;
+    $('sup-hora').textContent = `Actualizado a las ${r.hora}`;
+    const ps = r.personas || [];
+    const cuenta = (f) => ps.filter(f).length;
+    const tiles = [
+      ['En el local ahora', cuenta((p) => p.estado === 'En turno'), false],
+      ['En colación', cuenta((p) => p.estado === 'En colación'), false],
+      ['Llegaron tarde', cuenta((p) => p.atraso > 0), true],
+      ['No han llegado', cuenta((p) => p.estado === 'No ha llegado'), true],
+      ['Marcas fuera del local', ps.reduce((n, p) => n + (p.fueraDeZona || 0), 0), true]
+    ];
+    const tot = $('sup-totales'); tot.textContent = '';
+    tiles.forEach(([k, v, alerta]) => { const d = el('div', 'total' + (alerta && v ? ' alert' : '')); d.append(el('b', null, String(v)), el('span', 'small muted', k)); tot.append(d); });
+
+    const caja = $('sup-personas'); caja.textContent = '';
+    if (!ps.length) caja.append(el('p', 'muted small', 'Aún no hay trabajadores activos en la planilla.'));
+    ps.forEach((p) => {
+      const c = el('div', 'person');
+      const top = el('div', 'top'); top.append(el('b', null, p.nombre.replace(/^Ejemplo:\s*/, '')), el('span', 'pill ' + (CLASE[p.estado] || ''), p.estado));
+      c.append(top);
+      if (p.cargo) c.append(el('p', null, p.cargo));
+      c.append(el('p', null, p.turno ? `Turno ${p.turno.entrada}–${p.turno.salida}` : 'Sin turno cargado para hoy'));
+      if (p.entrada) c.append(el('p', null, `Entró a las ${p.entrada}` + (p.atraso > 0 ? ` · ${p.atraso} min tarde` : '')));
+      if (p.ultima) c.append(el('p', null, `Última marca: ${p.ultima.tipo} ${p.ultima.hora}` + (p.ultima.dentroZona === 'No' ? ` · fuera del local (${metrosTxt(p.ultima.distancia)})` : '')));
+      if (p.fueraDeZona) c.append(el('span', 'pill s-bad', `${p.fueraDeZona} marca${p.fueraDeZona > 1 ? 's' : ''} fuera del local`));
+      if (p.sinConexion) c.append(el('span', 'pill s-warn', `${p.sinConexion} enviada${p.sinConexion > 1 ? 's' : ''} sin conexión`));
+      caja.append(c);
+    });
+
+    const tb = $('sup-detalle'); tb.textContent = '';
+    if (!r.detalle.length) { const tr = el('tr'); const td = el('td', 'muted', 'Todavía no hay marcas hoy.'); td.colSpan = 7; tr.append(td); tb.append(tr); }
+    r.detalle.forEach((m) => {
+      const tr = el('tr');
+      const zona = m.dentroZona === 'Sí' ? 'En el local' : m.dentroZona === 'No' ? 'Fuera del local' : 'Sin ubicación';
+      const nota = [m.atraso > 0 ? `${m.atraso} min tarde` : '', m.sinConexion ? 'Enviada sin conexión' : ''].filter(Boolean).join(' · ') || '—';
+      [[m.hora, 'num'], [m.nombre.replace(/^Ejemplo:\s*/, ''), ''], [m.tipo, ''], [m.distancia == null ? '—' : metrosTxt(m.distancia), 'num'],
+        [zona, ''], [m.precision == null ? '—' : `±${m.precision} m`, 'num'], [nota, '']].forEach(([v, c]) => {
+        const td = el('td', c, v);
+        if (v === 'Fuera del local' || /tarde/.test(v)) td.style.color = 'var(--bad)';
+        tr.append(td);
+      });
+      tb.append(tr);
+    });
+  }
 
   function fijarRango(r) {
     const h = new Date(), d = new Date(h);
