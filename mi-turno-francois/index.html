@@ -150,6 +150,30 @@ td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .banner { background: var(--soft); border-radius: var(--radius); padding: 10px 14px; font-size: .875rem; }
 .banner.warn { color: var(--warn); }
 footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* Computador: la app usa el ancho de la pantalla en vez de una columna de teléfono. */
+@media (min-width: 900px) {
+  .app { max-width: 1180px; padding-block: 32px 48px; gap: 24px; }
+  h1 { font-size: 2rem; }
+  .brand svg { width: 42px; height: 42px; }
+  .brand b { font-size: 1.35rem; }
+  #v-aviso, #v-quien, #v-listo { width: 100%; max-width: 620px; margin-inline: auto; padding: 32px; }
+  #v-marcar:not([hidden]) { display: grid !important; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); grid-template-rows: auto 1fr; grid-template-areas: "reloj botones" "historial botones"; align-items: start; }
+  #v-marcar > .card:first-child { grid-area: reloj; }
+  #v-marcar > .punches { grid-area: botones; }
+  #v-marcar > .card:last-child { grid-area: historial; }
+  .clock { font-size: 6rem; }
+  .punches { gap: 14px; }
+  .punch { min-height: 150px; padding: 22px; }
+  .punch b { font-size: 1.4rem; }
+  .punch.next { min-height: 220px; }
+  .punch.next b { font-size: 2.4rem; }
+  #admin-login { width: 100%; max-width: 520px; margin-inline: auto; }
+  #admin-panel:not([hidden]) { display: grid !important; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); align-items: start; }
+  .totals { grid-template-columns: repeat(4, 1fr); }
+  .table-wrap { margin-inline: 0; padding-inline: 0; }
+  .sheet-wrap { align-items: center; }
+  .sheet { max-width: 420px; border-radius: 22px; }
+}
 @media (prefers-reduced-motion: no-preference) {
   .done .mark { animation: pop .35s ease-out; }
   @keyframes pop { from { transform: scale(.6); opacity: .2; } to { transform: scale(1); opacity: 1; } }
