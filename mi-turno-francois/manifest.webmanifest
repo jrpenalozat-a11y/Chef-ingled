@@ -1,0 +1,15 @@
+{
+  "name": "Mi Turno François",
+  "short_name": "Mi Turno",
+  "description": "Marca tu entrada y salida en François.",
+  "lang": "es-CL",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1d1412",
+  "theme_color": "#1d1412",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

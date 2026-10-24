@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mi Turno François</title>
+<meta name="description" content="Marca tu entrada y salida en François.">
+<meta name="theme-color" content="#1d1412">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Turno">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<script src="config.js"></script>
+<style>
+/* Una sola columna de teléfono: reloj arriba, botones grandes al centro, detalles abajo. */
+:root {
+  --bg: #fbf7f4;
+  --surface: #ffffff;
+  --ink: #1d1412;
+  --muted: #6e5f59;
+  --line: #e7ddd6;
+  --accent: #c2325a;
+  --accent-ink: #ffffff;
+  --ok: #1f7a4d;
+  --warn: #a86108;
+  --bad: #b3261e;
+  --soft: #f3ebe5;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1d1412; --surface: #2a1f1c; --ink: #f2e6dc; --muted: #b8a69c; --line: #3d2f2a;
+    --accent: #e0476f; --accent-ink: #1d1412; --ok: #5cc48d; --warn: #e8a23a; --bad: #f2786d; --soft: #33261f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1d1412; --surface: #2a1f1c; --ink: #f2e6dc; --muted: #b8a69c; --line: #3d2f2a;
+  --accent: #e0476f; --accent-ink: #1d1412; --ok: #5cc48d; --warn: #e8a23a; --bad: #f2786d; --soft: #33261f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.app { max-width: 440px; margin: 0 auto; padding-block: 20px 40px; display: flex; flex-direction: column; gap: 20px; }
+h1, h2 { font-family: var(--display); font-weight: 800; line-height: 1.1; margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.25rem; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: .875rem; }
+.label { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { width: 34px; height: 34px; flex: none; }
+.brand b { font-family: var(--display); font-size: 1.1rem; }
+.brand span { display: block; font-size: .75rem; color: var(--muted); }
+
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; border-radius: var(--radius); }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.link { background: none; padding: 6px 4px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.btn { padding: 14px 18px; font-weight: 600; background: var(--soft); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+select, input[type="text"], input[type="date"], input[type="number"] {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+}
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+
+.who { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.who h1 { font-size: 1.5rem; }
+.clock { font-family: var(--mono); font-weight: 700; font-size: clamp(3.2rem, 18vw, 4.6rem); letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.date { color: var(--muted); }
+.date::first-letter { text-transform: uppercase; }
+
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--soft); font-size: .875rem; font-weight: 500; align-self: flex-start; }
+.chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.chip.ok::before { background: var(--ok); }
+.chip.warn::before { background: var(--warn); }
+.chip.bad::before { background: var(--bad); }
+
+.punches { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.punch { padding: 18px 12px; background: var(--soft); text-align: left; display: flex; flex-direction: column; gap: 2px; min-height: 84px; justify-content: flex-end; }
+.punch b { font-family: var(--display); font-size: 1.1rem; }
+.punch small { color: var(--muted); font-size: .8rem; }
+.punch.next { background: var(--accent); color: var(--accent-ink); grid-column: 1 / -1; min-height: 110px; }
+.punch.next b { font-size: 1.6rem; }
+.punch.next small { color: inherit; opacity: .85; }
+
+.history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.history li { display: grid; grid-template-columns: 4.2rem 1fr auto; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.history li:first-child { border-top: 0; }
+.history li.vacio { display: block; color: var(--muted); font-size: .875rem; }
+.history time { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.tag { font-size: .75rem; padding: 2px 8px; border-radius: 999px; background: var(--soft); white-space: nowrap; }
+.tag.bad { color: var(--bad); }
+.tag.warn { color: var(--warn); }
+
+/* Teclado de PIN */
+.sheet-wrap { position: fixed; inset: 0; background: rgb(0 0 0 / .45); display: flex; align-items: flex-end; justify-content: center; z-index: 20; }
+.sheet { width: 100%; max-width: 440px; background: var(--surface); border-radius: 22px 22px 0 0; padding: 22px max(16px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 16px; }
+.dots { display: flex; gap: 14px; justify-content: center; padding: 6px 0; }
+.dots i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); }
+.dots i.on { background: var(--ink); border-color: var(--ink); }
+.pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pad button { padding: 16px 0; font-family: var(--mono); font-size: 1.4rem; font-weight: 700; background: var(--soft); }
+.pad button.aux { font-family: var(--body); font-size: .95rem; font-weight: 600; }
+.error { color: var(--bad); font-weight: 500; min-height: 1.5em; text-align: center; }
+
+/* Resultado */
+.done { text-align: center; align-items: center; padding-block: 28px; }
+.done .mark { width: 76px; height: 76px; border-radius: 50%; background: var(--ok); color: var(--bg); display: grid; place-items: center; }
+.done .mark svg { width: 40px; height: 40px; }
+.done .clock { font-size: 3.4rem; }
+
+/* Administración */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tabs button { padding: 8px 14px; background: var(--soft); font-size: .9rem; font-weight: 600; }
+.tabs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row > * { flex: 1 1 140px; min-width: 0; }
+.table-wrap { overflow-x: auto; margin-inline: -18px; padding-inline: 18px; }
+table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+th, td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.total { background: var(--soft); border-radius: var(--radius); padding: 12px; }
+.total b { display: block; font-family: var(--mono); font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+
+.banner { background: var(--soft); border-radius: var(--radius); padding: 10px 14px; font-size: .875rem; }
+.banner.warn { color: var(--warn); }
+footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: no-preference) {
+  .done .mark { animation: pop .35s ease-out; }
+  @keyframes pop { from { transform: scale(.6); opacity: .2; } to { transform: scale(1); opacity: 1; } }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="120" fill="#1d1412"/><circle cx="256" cy="256" r="150" fill="none" stroke="#f2e6dc" stroke-width="30"/><path d="M256 166v96l62 38" fill="none" stroke="#e0476f" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><b>Mi Turno</b><span id="nombre-local">François La Florida</span></div>
+    </div>
+    <button class="link small" id="btn-admin" type="button">Administración</button>
+  </header>
+
+  <p class="banner warn" id="aviso-demo" hidden>Modo demostración: los nombres son de ejemplo (PIN 1234) y las marcas quedan solo en este teléfono.</p>
+  <p class="banner" id="aviso-pendientes" hidden></p>
+
+  <!-- 1. Aviso inicial -->
+  <section class="card" id="v-aviso" hidden>
+    <h1>Antes de empezar</h1>
+    <p>Con esta app marcas tu entrada, colación y salida en François.</p>
+    <p>Al marcar, la app toma tu ubicación <b>solo en ese momento</b> para confirmar que estás en el local. No sigue tu ubicación durante el turno.</p>
+    <p class="muted small">Es un control interno de horarios de François. No reemplaza el registro oficial de asistencia.</p>
+    <button class="btn primary" id="btn-acepto" type="button">Entendido</button>
+  </section>
+
+  <!-- 2. Elegir trabajador -->
+  <section class="card" id="v-quien" hidden>
+    <h1>¿Quién eres?</h1>
+    <p class="muted">Elige tu nombre. Este teléfono lo recordará.</p>
+    <div class="field">
+      <label class="label" for="sel-trabajador">Nombre</label>
+      <select id="sel-trabajador"><option value="">Cargando…</option></select>
+    </div>
+    <p class="error" id="err-quien"></p>
+    <button class="btn primary" id="btn-soy" type="button" disabled>Continuar</button>
+  </section>
+
+  <!-- 3. Marcar -->
+  <section id="v-marcar" hidden style="display:flex;flex-direction:column;gap:20px">
+    <div class="card">
+      <div class="who">
+        <h1 id="txt-nombre">—</h1>
+        <button class="link small" id="btn-cambiar" type="button">No soy yo</button>
+      </div>
+      <div>
+        <div class="clock" id="reloj">--:--</div>
+        <p class="date" id="fecha"></p>
+      </div>
+      <span class="chip" id="chip-ubicacion">Buscando tu ubicación…</span>
+    </div>
+    <div class="punches" id="botones"></div>
+    <div class="card">
+      <div class="who"><h2>Tus últimas marcas</h2><button class="link small" id="btn-ver-marcas" type="button">Ver</button></div>
+      <ul class="history" id="lista-marcas"><li class="vacio">Toca "Ver" e ingresa tu PIN para revisarlas.</li></ul>
+    </div>
+  </section>
+
+  <!-- 4. Resultado -->
+  <section class="card done" id="v-listo" hidden>
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <h1 id="listo-tipo">Entrada registrada</h1>
+    <div class="clock" id="listo-hora">--:--</div>
+    <p id="listo-detalle" class="muted"></p>
+    <button class="btn primary" id="btn-listo" type="button">Listo</button>
+  </section>
+
+  <!-- 5. Administración -->
+  <section id="v-admin" hidden style="display:flex;flex-direction:column;gap:20px">
+    <div class="card" id="admin-login">
+      <h1>Administración</h1>
+      <p class="muted">Horas, atrasos y marcas fuera del local.</p>
+      <div class="field">
+        <label class="label" for="in-pin-admin">PIN de administración</label>
+        <input type="password" inputmode="numeric" autocomplete="off" id="in-pin-admin">
+      </div>
+      <p class="error" id="err-admin"></p>
+      <div class="row"><button class="btn" id="btn-admin-volver" type="button">Volver</button><button class="btn primary" id="btn-admin-entrar" type="button">Entrar</button></div>
+    </div>
+
+    <div id="admin-panel" hidden style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="who"><h1>Asistencia</h1><button class="link small" id="btn-admin-salir" type="button">Salir</button></div>
+        <div class="tabs" id="rangos">
+          <button type="button" data-r="hoy" aria-pressed="true">Hoy</button>
+          <button type="button" data-r="ayer" aria-pressed="false">Ayer</button>
+          <button type="button" data-r="semana" aria-pressed="false">Esta semana</button>
+          <button type="button" data-r="mes" aria-pressed="false">Este mes</button>
+        </div>
+        <div class="row">
+          <div class="field"><label class="label" for="in-desde">Desde</label><input type="date" id="in-desde"></div>
+          <div class="field"><label class="label" for="in-hasta">Hasta</label><input type="date" id="in-hasta"></div>
+        </div>
+        <button class="btn" id="btn-reporte" type="button">Actualizar</button>
+        <div class="totals" id="totales"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Trabajador</th><th>Entrada</th><th>Salida</th><th>Horas</th><th>Atraso</th><th>Fuera de zona</th></tr></thead>
+            <tbody id="tabla"></tbody>
+          </table>
+        </div>
+        <p class="error" id="err-reporte"></p>
+        <button class="btn" id="btn-csv" type="button">Descargar planilla (CSV)</button>
+      </div>
+
+      <div class="card">
+        <h2>Ubicación del local</h2>
+        <p class="muted small" id="txt-local">Sin fijar.</p>
+        <div class="field">
+          <label class="label" for="in-radio">Radio permitido (metros)</label>
+          <input type="number" id="in-radio" min="30" step="10" value="150">
+        </div>
+        <p class="small">Párate dentro de François y toca el botón. Esa será la ubicación de referencia.</p>
+        <p class="error" id="err-local"></p>
+        <button class="btn primary" id="btn-fijar-local" type="button">Usar mi ubicación actual</button>
+      </div>
+    </div>
+  </section>
+
+  <footer class="small muted">
+    <span>Control interno de horarios · François</span>
+    <span id="txt-version">v1</span>
+  </footer>
+</div>
+
+<!-- Teclado de PIN -->
+<div class="sheet-wrap" id="pin" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pin-titulo">
+    <div>
+      <p class="label" id="pin-sub">Entrada</p>
+      <h2 id="pin-titulo">Ingresa tu PIN</h2>
+    </div>
+    <div class="dots" id="pin-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <p class="error" id="pin-error" role="alert"></p>
+    <div class="pad" id="pin-pad"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const API = ((window.MI_TURNO_CONFIG || {}).apiUrl || '').trim();
+  const DEMO = !API;
+  const TIPOS = ['Entrada', 'Salida a colación', 'Vuelta de colación', 'Salida'];
+  const SIGUIENTE = { '': 'Entrada', 'Entrada': 'Salida a colación', 'Salida a colación': 'Vuelta de colación', 'Vuelta de colación': 'Salida', 'Salida': 'Entrada' };
+  const LARGO_PIN = 4;
+
+  const $ = (id) => document.getElementById(id);
+  const vistas = ['v-aviso', 'v-quien', 'v-marcar', 'v-listo', 'v-admin'];
+
+  // ---------- Memoria del teléfono ----------
+  const mem = {
+    get(k, def) { try { const v = localStorage.getItem('miturno.' + k); return v === null ? def : JSON.parse(v); } catch { return def; } },
+    set(k, v) { try { localStorage.setItem('miturno.' + k, JSON.stringify(v)); } catch {} },
+    del(k) { try { localStorage.removeItem('miturno.' + k); } catch {} }
+  };
+
+  // ---------- Servidor ----------
+  async function api(datos) {
+    if (DEMO) return demo(datos);
+    const r = await fetch(API, { method: 'POST', body: JSON.stringify(datos) });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'No se pudo completar.');
+    return j;
+  }
+  async function apiGet(accion) {
+    if (DEMO) return demo({ accion });
+    const r = await fetch(API + '?accion=' + encodeURIComponent(accion));
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'No se pudo completar.');
+    return j;
+  }
+
+  // ---------- Modo demostración (sin servidor) ----------
+  function demo(d) {
+    const trabajadores = [
+      { nombre: 'Ejemplo: Camila', rut: '11111111', cargo: 'Caja' },
+      { nombre: 'Ejemplo: Diego', rut: '22222222', cargo: 'Pastelería' },
+      { nombre: 'Ejemplo: Valentina', rut: '33333333', cargo: 'Salón' }
+    ];
+    const local = mem.get('demo.local', { nombre: 'François La Florida (demo)', lat: null, lng: null, radio: 150 });
+    const marcas = mem.get('demo.marcas', []);
+    const hoy = fechaISO(new Date());
+    if (d.accion === 'trabajadores') return { ok: true, trabajadores };
+    if (d.accion === 'estado') return { ok: true, local };
+    const t = trabajadores.find((x) => x.rut === d.rut);
+    if (['marcar', 'misMarcas'].includes(d.accion) && (!t || d.pin !== '1234')) throw new Error('Nombre o PIN incorrecto.');
+    if (d.accion === 'marcar') {
+      const ahora = new Date();
+      const dist = local.lat != null && d.lat != null ? Math.round(distancia(d.lat, d.lng, local.lat, local.lng)) : null;
+      const dentro = dist == null ? 'Sin dato' : dist <= local.radio ? 'Sí' : 'No';
+      const m = { fecha: hoy, hora: horaTxt(ahora, true), nombre: t.nombre, rut: t.rut, tipo: d.tipo, distancia: dist, dentroZona: dentro, atraso: '' };
+      marcas.push(m); mem.set('demo.marcas', marcas);
+      return { ok: true, hora: m.hora.slice(0, 5), tipo: d.tipo, nombre: t.nombre, distancia: dist, dentroZona: dentro, atraso: '' };
+    }
+    if (d.accion === 'misMarcas') return { ok: true, nombre: t.nombre, marcas: marcas.filter((m) => m.rut === t.rut).slice(-12).reverse() };
+    if (d.pinAdmin !== '123456') throw new Error('PIN de administración incorrecto. En la demostración es 123456.');
+    if (d.accion === 'fijarLocal') {
+      const nuevo = { ...local, lat: d.lat, lng: d.lng, radio: Number(d.radio) || local.radio };
+      mem.set('demo.local', nuevo); return { ok: true, local: nuevo };
+    }
+    if (d.accion === 'reporte') {
+      const grupos = {};
+      marcas.filter((m) => m.fecha >= d.desde && m.fecha <= d.hasta).forEach((m) => {
+        const k = m.fecha + '|' + m.rut;
+        (grupos[k] = grupos[k] || { fecha: m.fecha, nombre: m.nombre, rut: m.rut, marcas: [] }).marcas.push(m);
+      });
+      const filas = Object.keys(grupos).sort().map((k) => {
+        const g = grupos[k];
+        const e = g.marcas.find((m) => m.tipo === 'Entrada');
+        const s = [...g.marcas].reverse().find((m) => m.tipo === 'Salida');
+        return { fecha: g.fecha, nombre: g.nombre, rut: g.rut, entrada: e ? e.hora.slice(0, 5) : '', salida: s ? s.hora.slice(0, 5) : '',
+          minutosTrabajados: e && s ? minutos(e.hora, s.hora) : null, atraso: null,
+          fueraDeZona: g.marcas.filter((m) => m.dentroZona === 'No').length };
+      });
+      return { ok: true, filas, local };
+    }
+    throw new Error('Acción desconocida.');
+  }
+
+  // ---------- Utilidades ----------
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const fechaISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const horaTxt = (d, seg) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}${seg ? ':' + pad2(d.getSeconds()) : ''}`;
+  const minutos = (a, b) => { const x = a.split(':'), y = b.split(':'); return (+y[0] * 60 + +y[1]) - (+x[0] * 60 + +x[1]); };
+  const horasTxt = (m) => m == null ? '—' : `${Math.floor(m / 60)} h ${pad2(m % 60)}`;
+  const metrosTxt = (m) => m >= 1000 ? (m / 1000).toFixed(1).replace('.', ',') + ' km' : m + ' m';
+  function distancia(lat1, lng1, lat2, lng2) {
+    const R = 6371000, r = Math.PI / 180, dLat = (lat2 - lat1) * r, dLng = (lng2 - lng1) * r;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  function mostrar(id) {
+    vistas.forEach((v) => { $(v).hidden = v !== id; });
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- Estado ----------
+  let trabajador = mem.get('trabajador', null);
+  let local = mem.get('local', null);
+  let posicion = null;
+
+  // ---------- Reloj ----------
+  const fmtFecha = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+  function tic() {
+    const d = new Date();
+    $('reloj').textContent = horaTxt(d);
+    $('fecha').textContent = fmtFecha.format(d);
+  }
+  setInterval(tic, 1000); tic();
+
+  // ---------- Ubicación ----------
+  function pedirUbicacion() {
+    return new Promise((ok) => {
+      if (!('geolocation' in navigator)) return ok({ error: 'Este teléfono no entrega ubicación.' });
+      navigator.geolocation.getCurrentPosition(
+        (p) => ok({ lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy }),
+        (e) => ok({ error: e.code === 1 ? 'Ubicación bloqueada. Actívala en los permisos del navegador.' : 'No se pudo obtener la ubicación.' }),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 20000 }
+      );
+    });
+  }
+  async function refrescarUbicacion() {
+    const chip = $('chip-ubicacion');
+    chip.className = 'chip'; chip.textContent = 'Buscando tu ubicación…';
+    posicion = await pedirUbicacion();
+    if (posicion.error) { chip.className = 'chip bad'; chip.textContent = posicion.error; return; }
+    if (!local || local.lat == null) { chip.className = 'chip warn'; chip.textContent = 'Ubicación lista · el local aún no tiene ubicación fijada'; return; }
+    const d = Math.round(distancia(posicion.lat, posicion.lng, local.lat, local.lng));
+    if (d <= local.radio) { chip.className = 'chip ok'; chip.textContent = `En François · a ${metrosTxt(d)}`; }
+    else { chip.className = 'chip bad'; chip.textContent = `Fuera del local · a ${metrosTxt(d)}`; }
+  }
+
+  // ---------- Pantalla de marcar ----------
+  function pintarBotones() {
+    const ultimo = mem.get('ultimo.' + (trabajador && trabajador.rut), null);
+    const hoy = fechaISO(new Date());
+    const previo = ultimo && ultimo.fecha === hoy ? ultimo.tipo : '';
+    const sig = SIGUIENTE[previo];
+    const caja = $('botones');
+    caja.textContent = '';
+    [sig, ...TIPOS.filter((t) => t !== sig)].forEach((tipo) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'punch' + (tipo === sig ? ' next' : '');
+      const n = document.createElement('b'); n.textContent = tipo;
+      const s = document.createElement('small');
+      s.textContent = tipo === sig ? (previo ? `Última hoy: ${previo} a las ${ultimo.hora}` : 'Toca para marcar') : 'Marcar';
+      b.append(s, n);
+      b.addEventListener('click', () => abrirPin(tipo));
+      caja.append(b);
+    });
+  }
+
+  function irAMarcar() {
+    $('txt-nombre').textContent = trabajador.nombre.replace(/^Ejemplo:\s*/, '');
+    pintarBotones();
+    mostrar('v-marcar');
+    refrescarUbicacion();
+  }
+
+  // ---------- Teclado de PIN ----------
+  let pinValor = '', pinAccion = null;
+  (function armarTeclado() {
+    const pad = $('pin-pad');
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Cancelar', '0', 'Borrar'].forEach((k) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = k;
+      if (k.length > 1) b.className = 'aux';
+      b.addEventListener('click', () => tecla(k));
+      pad.append(b);
+    });
+    document.addEventListener('keydown', (e) => {
+      if ($('pin').hidden) return;
+      if (/^\d$/.test(e.key)) tecla(e.key);
+      else if (e.key === 'Backspace') tecla('Borrar');
+      else if (e.key === 'Escape') tecla('Cancelar');
+    });
+  })();
+  function pintarPin() {
+    [...$('pin-dots').children].forEach((d, i) => d.classList.toggle('on', i < pinValor.length));
+  }
+  function abrirPin(sub, accion) {
+    pinValor = ''; pintarPin();
+    $('pin-error').textContent = '';
+    $('pin-sub').textContent = sub;
+    pinAccion = accion || ((pin) => enviarMarca(sub, pin));
+    $('pin').hidden = false;
+    if (!accion) refrescarUbicacion();
+  }
+  function cerrarPin() { $('pin').hidden = true; pinValor = ''; }
+  async function tecla(k) {
+    if (k === 'Cancelar') return cerrarPin();
+    if (k === 'Borrar') { pinValor = pinValor.slice(0, -1); return pintarPin(); }
+    if (pinValor.length >= LARGO_PIN) return;
+    pinValor += k; pintarPin();
+    if (pinValor.length === LARGO_PIN) {
+      const pin = pinValor;
+      $('pin-error').textContent = 'Enviando…';
+      try { await pinAccion(pin); }
+      catch (e) { $('pin-error').textContent = e.message; pinValor = ''; pintarPin(); }
+    }
+  }
+
+  // ---------- Enviar marca ----------
+  async function enviarMarca(tipo, pin) {
+    const pos = posicion && !posicion.error ? posicion : await pedirUbicacion();
+    const datos = {
+      accion: 'marcar', rut: trabajador.rut, pin, tipo,
+      lat: pos.error ? null : pos.lat, lng: pos.error ? null : pos.lng, precision: pos.error ? null : pos.precision,
+      horaTelefono: `${fechaISO(new Date())} ${horaTxt(new Date(), true)}`,
+      dispositivo: navigator.userAgent
+    };
+    let r;
+    try {
+      r = await api(datos);
+    } catch (e) {
+      if (e instanceof TypeError) { // sin conexión: guardar y reintentar después
+        const cola = mem.get('pendientes', []);
+        cola.push({ ...datos, sinConexion: true });
+        mem.set('pendientes', cola);
+        cerrarPin();
+        recordarUltimo(tipo, horaTxt(new Date()));
+        mostrarListo({ tipo, hora: horaTxt(new Date()), pendiente: true });
+        avisoPendientes();
+        return;
+      }
+      throw e;
+    }
+    cerrarPin();
+    recordarUltimo(tipo, r.hora);
+    mostrarListo(r);
+  }
+  function recordarUltimo(tipo, hora) {
+    mem.set('ultimo.' + trabajador.rut, { tipo, hora, fecha: fechaISO(new Date()) });
+  }
+  function mostrarListo(r) {
+    $('listo-tipo').textContent = `${r.tipo} registrada`;
+    $('listo-hora').textContent = r.hora;
+    const partes = [];
+    if (r.pendiente) partes.push('Sin conexión: se enviará apenas haya señal. La hora del servidor puede quedar distinta.');
+    if (r.duplicada) partes.push('Ya la habías marcado hace un momento; no se duplicó.');
+    if (r.dentroZona === 'Sí') partes.push(`En el local (a ${metrosTxt(r.distancia)}).`);
+    if (r.dentroZona === 'No') partes.push(`Quedó marcada fuera del local (a ${metrosTxt(r.distancia)}).`);
+    if (r.dentroZona === 'Sin dato') partes.push('Quedó sin ubicación.');
+    if (r.atraso !== '' && r.atraso != null && Number(r.atraso) > 0) partes.push(`Atraso de ${r.atraso} min según tu turno.`);
+    $('listo-detalle').textContent = partes.join(' ');
+    mostrar('v-listo');
+  }
+  async function enviarPendientes() {
+    const cola = mem.get('pendientes', []);
+    if (!cola.length || DEMO) return avisoPendientes();
+    const quedan = [];
+    for (const m of cola) {
+      try { await api(m); } catch (e) { if (e instanceof TypeError) quedan.push(m); }
+    }
+    mem.set('pendientes', quedan);
+    avisoPendientes();
+  }
+  function avisoPendientes() {
+    const n = mem.get('pendientes', []).length;
+    $('aviso-pendientes').hidden = !n;
+    $('aviso-pendientes').textContent = n === 1 ? 'Hay 1 marca esperando conexión para enviarse.' : `Hay ${n} marcas esperando conexión para enviarse.`;
+  }
+  window.addEventListener('online', enviarPendientes);
+
+  // ---------- Mis marcas ----------
+  $('btn-ver-marcas').addEventListener('click', () => abrirPin('Ver mis marcas', async (pin) => {
+    const r = await api({ accion: 'misMarcas', rut: trabajador.rut, pin });
+    cerrarPin();
+    const ul = $('lista-marcas'); ul.textContent = '';
+    if (!r.marcas.length) {
+      const li = document.createElement('li'); li.className = 'vacio'; li.textContent = 'Todavía no tienes marcas.'; ul.append(li); return;
+    }
+    r.marcas.forEach((m) => {
+      const li = document.createElement('li');
+      const t = document.createElement('time'); t.textContent = m.hora.slice(0, 5);
+      const d = document.createElement('span'); d.textContent = `${m.tipo} · ${m.fecha.slice(8, 10)}/${m.fecha.slice(5, 7)}`;
+      const z = document.createElement('span'); z.className = 'tag' + (m.dentroZona === 'No' ? ' bad' : m.dentroZona === 'Sin dato' ? ' warn' : '');
+      z.textContent = m.dentroZona === 'Sí' ? 'En local' : m.dentroZona === 'No' ? 'Fuera' : 'Sin ubicación';
+      li.append(t, d, z); ul.append(li);
+    });
+  }));
+
+  // ---------- Inicio ----------
+  async function cargarTrabajadores() {
+    const sel = $('sel-trabajador');
+    $('err-quien').textContent = '';
+    try {
+      const r = await apiGet('trabajadores');
+      sel.textContent = '';
+      const o = document.createElement('option'); o.value = ''; o.textContent = 'Elige tu nombre'; sel.append(o);
+      r.trabajadores.forEach((t) => {
+        const op = document.createElement('option'); op.value = t.rut; op.textContent = t.nombre + (t.cargo ? ` · ${t.cargo}` : '');
+        op.dataset.nombre = t.nombre; sel.append(op);
+      });
+      if (!r.trabajadores.length) $('err-quien').textContent = 'Aún no hay trabajadores activos en la planilla.';
+    } catch (e) {
+      $('err-quien').textContent = 'No se pudo cargar la lista. Revisa la conexión e inténtalo de nuevo.';
+    }
+  }
+  $('sel-trabajador').addEventListener('change', (e) => { $('btn-soy').disabled = !e.target.value; });
+  $('btn-soy').addEventListener('click', () => {
+    const op = $('sel-trabajador').selectedOptions[0];
+    trabajador = { rut: op.value, nombre: op.dataset.nombre };
+    mem.set('trabajador', trabajador);
+    irAMarcar();
+  });
+  $('btn-cambiar').addEventListener('click', () => { trabajador = null; mem.del('trabajador'); cargarTrabajadores(); mostrar('v-quien'); });
+  $('btn-acepto').addEventListener('click', () => { mem.set('aviso', true); arrancar(); });
+  $('btn-listo').addEventListener('click', irAMarcar);
+
+  async function cargarLocal() {
+    try {
+      const r = await apiGet('estado');
+      local = r.local; mem.set('local', local);
+      $('nombre-local').textContent = local.nombre;
+    } catch {}
+  }
+
+  function arrancar() {
+    if (!mem.get('aviso', false)) return mostrar('v-aviso');
+    if (!trabajador) { cargarTrabajadores(); return mostrar('v-quien'); }
+    irAMarcar();
+  }
+
+  // ---------- Administración ----------
+  let pinAdmin = '', ultimoReporte = null;
+  $('btn-admin').addEventListener('click', () => {
+    $('admin-login').hidden = !!pinAdmin; $('admin-panel').hidden = !pinAdmin;
+    mostrar('v-admin');
+  });
+  $('btn-admin-volver').addEventListener('click', arrancar);
+  $('btn-admin-salir').addEventListener('click', () => { pinAdmin = ''; $('in-pin-admin').value = ''; arrancar(); });
+  $('btn-admin-entrar').addEventListener('click', async () => {
+    $('err-admin').textContent = '';
+    const pin = $('in-pin-admin').value.trim();
+    const hoy = fechaISO(new Date());
+    try {
+      const r = await api({ accion: 'reporte', pinAdmin: pin, desde: hoy, hasta: hoy });
+      pinAdmin = pin;
+      $('admin-login').hidden = true; $('admin-panel').hidden = false;
+      fijarRango('hoy'); pintarReporte(r);
+    } catch (e) { $('err-admin').textContent = e.message; }
+  });
+  $('in-pin-admin').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-admin-entrar').click(); });
+
+  function fijarRango(r) {
+    const h = new Date(), d = new Date(h);
+    if (r === 'ayer') { d.setDate(h.getDate() - 1); h.setDate(h.getDate() - 1); }
+    if (r === 'semana') d.setDate(h.getDate() - ((h.getDay() + 6) % 7));
+    if (r === 'mes') d.setDate(1);
+    $('in-desde').value = fechaISO(d); $('in-hasta').value = fechaISO(h);
+    [...$('rangos').children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.r === r)));
+  }
+  $('rangos').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    fijarRango(b.dataset.r); pedirReporte();
+  });
+  $('btn-reporte').addEventListener('click', () => {
+    [...$('rangos').children].forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    pedirReporte();
+  });
+  async function pedirReporte() {
+    $('err-reporte').textContent = '';
+    try { pintarReporte(await api({ accion: 'reporte', pinAdmin, desde: $('in-desde').value, hasta: $('in-hasta').value })); }
+    catch (e) { $('err-reporte').textContent = e.message; }
+  }
+  function pintarReporte(r) {
+    ultimoReporte = r;
+    if (r.local) { local = r.local; mem.set('local', local); pintarLocal(); }
+    const tb = $('tabla'); tb.textContent = '';
+    let min = 0, atrasos = 0, fuera = 0, sinSalida = 0;
+    r.filas.forEach((f) => {
+      min += f.minutosTrabajados || 0;
+      atrasos += f.atraso || 0;
+      fuera += f.fueraDeZona || 0;
+      if (f.entrada && !f.salida) sinSalida++;
+      const tr = document.createElement('tr');
+      [`${f.fecha.slice(8, 10)}/${f.fecha.slice(5, 7)}`, f.nombre, f.entrada || '—', f.salida || '—', horasTxt(f.minutosTrabajados),
+        f.atraso ? `${f.atraso} min` : '—', f.fueraDeZona ? String(f.fueraDeZona) : '—'].forEach((v, i) => {
+        const td = document.createElement('td'); td.textContent = v; if (i !== 1) td.className = 'num'; tr.append(td);
+      });
+      tb.append(tr);
+    });
+    if (!r.filas.length) {
+      const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 7; td.className = 'muted';
+      td.textContent = 'No hay marcas en estas fechas.'; tr.append(td); tb.append(tr);
+    }
+    const tot = $('totales'); tot.textContent = '';
+    [['Horas trabajadas', horasTxt(min)], ['Minutos de atraso', String(atrasos)], ['Marcas fuera del local', String(fuera)], ['Días sin salida', String(sinSalida)]]
+      .forEach(([k, v]) => { const d = document.createElement('div'); d.className = 'total'; const b = document.createElement('b'); b.textContent = v; const s = document.createElement('span'); s.className = 'small muted'; s.textContent = k; d.append(b, s); tot.append(d); });
+  }
+  function pintarLocal() {
+    $('txt-local').textContent = local && local.lat != null
+      ? `Fijada en ${local.lat.toFixed(5)}, ${local.lng.toFixed(5)} · radio ${local.radio} m.`
+      : 'Todavía no está fijada. Hasta entonces las marcas quedan sin verificación de distancia.';
+    if (local && local.radio) $('in-radio').value = local.radio;
+  }
+  $('btn-fijar-local').addEventListener('click', async () => {
+    $('err-local').textContent = 'Obteniendo ubicación…';
+    const p = await pedirUbicacion();
+    if (p.error) { $('err-local').textContent = p.error; return; }
+    if (p.precision > 60) { $('err-local').textContent = `La señal es imprecisa (±${Math.round(p.precision)} m). Acércate a una ventana e inténtalo de nuevo.`; return; }
+    try {
+      const r = await api({ accion: 'fijarLocal', pinAdmin, lat: p.lat, lng: p.lng, radio: Number($('in-radio').value) || 150 });
+      local = r.local; mem.set('local', local); pintarLocal();
+      $('err-local').textContent = '';
+    } catch (e) { $('err-local').textContent = e.message; }
+  });
+  $('btn-csv').addEventListener('click', () => {
+    if (!ultimoReporte) return;
+    const filas = [['Fecha', 'Trabajador', 'RUT', 'Entrada', 'Salida', 'Minutos trabajados', 'Atraso (min)', 'Marcas fuera del local']];
+    ultimoReporte.filas.forEach((f) => filas.push([f.fecha, f.nombre, f.rut, f.entrada, f.salida, f.minutosTrabajados ?? '', f.atraso ?? '', f.fueraDeZona]));
+    const csv = '﻿' + filas.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `asistencia_${$('in-desde').value}_${$('in-hasta').value}.csv`;
+    document.body.append(a); a.click(); a.remove();
+  });
+
+  // ---------- Arranque ----------
+  $('aviso-demo').hidden = !DEMO;
+  avisoPendientes();
+  cargarLocal().then(() => { if (!$('v-marcar').hidden) refrescarUbicacion(); });
+  enviarPendientes();
+  arrancar();
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
