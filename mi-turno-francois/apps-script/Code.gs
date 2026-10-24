@@ -132,6 +132,7 @@ function marcar(d) {
   var distancia = null;
   if (lat !== null && lng !== null && cfg.LATITUD_LOCAL !== '' && cfg.LONGITUD_LOCAL !== '') {
     distancia = Math.round(distanciaMetros(lat, lng, Number(cfg.LATITUD_LOCAL), Number(cfg.LONGITUD_LOCAL)));
+    if (isNaN(distancia)) distancia = null;
   }
   var dentro = distancia === null ? 'Sin dato' : (distancia <= Number(cfg.RADIO_METROS || 150) ? 'Sí' : 'No');
   var atraso = d.tipo === 'Entrada' ? calcularAtraso(t.nombre, ahora, Number(cfg.TOLERANCIA_MIN || 0)) : '';
@@ -385,7 +386,12 @@ function ultimaMarca(hoja, rut) {
 
 function leerConfig() {
   var cfg = {};
-  filas_(HOJAS.config).forEach(function (f) { cfg[f[0].trim()] = f[1].trim(); });
+  filas_(HOJAS.config).forEach(function (f) {
+    // En planillas en español los decimales se muestran con coma (-33,54): se pasan a punto.
+    var v = f[1].trim();
+    if (/^-?\d+,\d+$/.test(v)) v = v.replace(',', '.');
+    cfg[f[0].trim()] = v;
+  });
   return cfg;
 }
 
@@ -393,7 +399,7 @@ function escribirConfig(clave, valor) {
   var h = hoja_(HOJAS.config);
   var claves = h.getRange(2, 1, Math.max(1, h.getLastRow() - 1), 1).getValues();
   for (var i = 0; i < claves.length; i++) {
-    if (claves[i][0] === clave) { h.getRange(i + 2, 2).setValue(valor); return; }
+    if (claves[i][0] === clave) { h.getRange(i + 2, 2).setNumberFormat('@').setValue(String(valor)); return; }
   }
   h.appendRow([clave, valor, '']);
 }
