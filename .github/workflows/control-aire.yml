@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -29,3 +29,15 @@ jobs:
         with:
           name: control-aire-apk
           path: control-aire/control-aire.apk
+      - name: Publicar APK en Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view control-aire >/dev/null 2>&1; then
+            gh release upload control-aire control-aire/control-aire.apk --clobber
+          else
+            gh release create control-aire control-aire/control-aire.apk \
+              --target "$GITHUB_SHA" \
+              --title "Control Aire" \
+              --notes "Control remoto infrarrojo para aire acondicionado. Descarga control-aire.apk e instálalo en un teléfono Android con emisor infrarrojo."
+          fi
