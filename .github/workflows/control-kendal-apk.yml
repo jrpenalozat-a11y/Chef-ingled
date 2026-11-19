@@ -1,0 +1,31 @@
+name: APK Control Kendal
+
+on:
+  push:
+    paths:
+      - 'control-kendal-ir/**'
+      - '.github/workflows/control-kendal-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilar APK
+        run: ./control-kendal-ir/build.sh "${{ github.run_number }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: control-kendal-apk
+          path: control-kendal-ir/build/control-kendal.apk
+      - name: Publicar descarga
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete control-kendal --cleanup-tag --yes || true
+          gh release create control-kendal control-kendal-ir/build/control-kendal.apk \
+            --target "$GITHUB_SHA" --title "Control Kendal YKR-H/208E" \
+            --notes "App Android que emite infrarrojo (protocolo Electra/AUX). Descarga control-kendal.apk e instálalo en un teléfono con emisor infrarrojo."
